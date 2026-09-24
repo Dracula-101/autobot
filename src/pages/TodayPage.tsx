@@ -24,7 +24,7 @@ export function TodayPage() {
   }, [checked, checkInToday])
 
   return (
-    <div className="space-y-5 lg:space-y-6">
+    <div className="space-y-5 pb-16 lg:space-y-6">
       {/* Buddy brief — spans full main width */}
       <section className="panel relative overflow-hidden px-4 py-4 sm:px-5">
         <div
@@ -47,7 +47,7 @@ export function TodayPage() {
       </section>
 
       {/* Desktop: primary + side columns; tablet: 2-col where possible; mobile: stack */}
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_360px] lg:gap-6 xl:gap-8">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_clamp(280px,32%,360px)] lg:gap-6 xl:gap-8">
         <div className="min-w-0 space-y-5">
           <WeekStrip />
           <TaskList />

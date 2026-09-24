@@ -69,7 +69,7 @@ export function BuddyChat() {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="fixed bottom-[calc(5.5rem+env(safe-area-inset-bottom))] right-4 z-40 flex items-center gap-2 rounded-full border border-ink-border/80 bg-ink-card px-3.5 py-2.5 text-sm font-semibold text-cream shadow-lift hover:border-cream/25 md:bottom-8 md:right-8 lg:right-[max(2rem,calc((100vw-1520px)/2+2rem))]"
+        className="fixed bottom-[calc(7.75rem+env(safe-area-inset-bottom))] right-4 z-40 flex items-center gap-2 rounded-full border border-ink-border/80 bg-ink-card px-3.5 py-2.5 text-sm font-semibold text-cream shadow-lift hover:border-cream/25 md:bottom-8 md:right-6 lg:right-[max(2rem,calc((100vw-220px-1520px)/2+2rem))]"
       >
         <AutobotMascot mood="nudge" size={22} />
         Chat
@@ -79,7 +79,7 @@ export function BuddyChat() {
       {open ? (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/55 p-3 sm:items-center">
           <div className="flex max-h-[min(720px,90dvh)] w-full max-w-lg flex-col overflow-hidden rounded-3xl border border-ink-border bg-ink shadow-lift">
-            <header className="flex items-center justify-between border-b border-ink-border/70 px-4 py-3">
+            <header className="flex shrink-0 items-center justify-between border-b border-ink-border/70 px-4 py-3">
               <div className="flex items-center gap-2.5">
                 <AutobotMascot mood="happy" size={32} />
                 <div>
@@ -99,7 +99,7 @@ export function BuddyChat() {
               </button>
             </header>
 
-            <div className="flex-1 space-y-3 overflow-y-auto px-4 py-3">
+            <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-3">
               {msgs.map((m, i) => (
                 <div
                   key={i}
@@ -115,7 +115,7 @@ export function BuddyChat() {
             </div>
 
             <form
-              className="flex gap-2 border-t border-ink-border/70 p-3"
+              className="flex shrink-0 gap-2 border-t border-ink-border/70 p-3"
               onSubmit={(e) => {
                 e.preventDefault()
                 void send()
