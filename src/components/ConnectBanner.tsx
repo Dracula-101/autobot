@@ -26,7 +26,7 @@ export function ConnectBanner() {
             to="/auth"
             className="mt-1.5 inline-flex text-[12px] font-semibold text-sage hover:text-sage/80"
           >
-            Sign in to sync →
+            Sign in to sync
           </Link>
         )}
       </div>

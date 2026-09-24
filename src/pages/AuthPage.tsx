@@ -75,7 +75,7 @@ export function AuthPage() {
           </div>
           <div>
             <p className="eyebrow">Autobot</p>
-            <p className="mt-0.5 text-sm text-cream/45">Quiet caretaker for the grind</p>
+            <p className="mt-0.5 text-sm text-cream/45">Daily lock-in · Boulder</p>
           </div>
         </div>
 
@@ -200,17 +200,22 @@ export function AuthPage() {
         </button>
       </form>
 
-      <div className="relative mt-6 space-y-3">
+      <div className="relative mt-5">
+        <div className="mb-3 flex items-center gap-3">
+          <div className="h-px flex-1 bg-ink-border/70" />
+          <span className="text-[11px] font-medium uppercase tracking-[0.12em] text-cream/30">or</span>
+          <div className="h-px flex-1 bg-ink-border/70" />
+        </div>
         <Link
           to={profile.onboarded ? '/' : '/onboarding'}
-          className="btn-ghost group w-full"
+          className="group flex w-full items-center justify-between rounded-2xl border border-ink-border/80 bg-ink-card/80 px-4 py-3.5 text-left transition hover:border-cream/25 hover:bg-ink-raised"
         >
-          Continue as guest
-          <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" />
+          <div>
+            <p className="text-sm font-semibold text-cream/90">Continue as guest</p>
+            <p className="mt-0.5 text-[12px] text-cream/40">Local only — sync later from Settings</p>
+          </div>
+          <ArrowRight className="h-4 w-4 text-cream/40 transition group-hover:translate-x-0.5 group-hover:text-cream/70" />
         </Link>
-        <p className="text-center text-[12px] leading-relaxed text-cream/30">
-          Guest stays on this device. Sign in anytime from Settings to sync.
-        </p>
       </div>
     </div>
   )
