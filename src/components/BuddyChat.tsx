@@ -69,7 +69,7 @@ export function BuddyChat() {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="fixed bottom-[calc(8.5rem+env(safe-area-inset-bottom))] right-4 z-40 flex items-center gap-2 rounded-full border border-ink-border/80 bg-ink-card px-3.5 py-2.5 text-sm font-semibold text-cream shadow-lift hover:border-cream/25"
+        className="fixed bottom-[calc(5.5rem+env(safe-area-inset-bottom))] right-4 z-40 flex items-center gap-2 rounded-full border border-ink-border/80 bg-ink-card px-3.5 py-2.5 text-sm font-semibold text-cream shadow-lift hover:border-cream/25 md:bottom-8 md:right-8 lg:right-[max(2rem,calc((100vw-1520px)/2+2rem))]"
       >
         <AutobotMascot mood="nudge" size={22} />
         Chat

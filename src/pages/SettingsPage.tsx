@@ -27,13 +27,16 @@ export function SettingsPage() {
   }
 
   return (
-    <div className="animate-fade-up space-y-5">
+    <div className="animate-fade-up space-y-5 lg:space-y-6">
       <div>
-        <h2 className="font-display text-xl font-semibold tracking-tight text-cream">Settings</h2>
+        <h2 className="font-display text-xl font-semibold tracking-tight text-cream lg:text-[1.35rem]">
+          Settings
+        </h2>
         <p className="mt-1 text-sm text-cream/45">Your caretaker preferences</p>
       </div>
 
-      <section className="card space-y-4 p-4">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2 lg:gap-6">
+      <section className="card space-y-4 p-5">
         <div>
           <label className="mb-1.5 block text-xs text-cream/50">Display name</label>
           <input
@@ -79,7 +82,8 @@ export function SettingsPage() {
         </button>
       </section>
 
-      <section className="card space-y-3 p-4">
+      <div className="space-y-5">
+      <section className="card space-y-3 p-5">
         <h3 className="text-sm font-semibold text-cream/80">Account</h3>
         {user ? (
           <>
@@ -106,7 +110,7 @@ export function SettingsPage() {
         )}
       </section>
 
-      <section className="card p-4 text-[11px] leading-relaxed text-ink-muted">
+      <section className="card p-5 text-[11px] leading-relaxed text-ink-muted">
         <p className="font-medium text-cream/40">Hard rules</p>
         <ul className="mt-2 list-inside list-disc space-y-1">
           <li>Deep work = campus. Home is for sleep, food, wind-down.</li>
@@ -114,6 +118,8 @@ export function SettingsPage() {
           <li>Every free day: leave the house for one real session.</li>
         </ul>
       </section>
+      </div>
+      </div>
     </div>
   )
 }

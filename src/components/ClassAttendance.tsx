@@ -29,7 +29,7 @@ export function ClassAttendance() {
 
   return (
     <section className="rounded-2xl border border-ink-border/70 bg-ink-card/90 p-4 shadow-soft">
-      <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-sage/80">
+      <p className="text-[11px] font-semibold text-sage/80">
         Class check
       </p>
       <h3 className="mt-1 font-display text-[1.15rem] font-semibold tracking-[-0.02em] text-cream">

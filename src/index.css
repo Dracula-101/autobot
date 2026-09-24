@@ -39,30 +39,45 @@ body {
 }
 
 @layer components {
+  /* Full-bleed content column — nearly viewport width on desktop */
+  .shell {
+    @apply mx-auto w-full max-w-[1520px] px-4 sm:px-6 lg:px-8;
+  }
+
+  .panel {
+    @apply rounded-2xl border border-ink-border/70 bg-ink-card/90 shadow-soft backdrop-blur-sm;
+  }
+
   .card {
     @apply rounded-2xl border border-ink-border/70 bg-ink-card/90 shadow-soft backdrop-blur-sm;
   }
+
   .btn-primary {
     @apply inline-flex min-h-touch items-center justify-center gap-2 rounded-2xl
       bg-cream px-5 py-3.5 text-[15px] font-semibold text-ink
       transition hover:bg-white active:scale-[0.985] disabled:cursor-not-allowed disabled:opacity-45;
   }
+
   .btn-ghost {
     @apply inline-flex min-h-touch items-center justify-center gap-2 rounded-2xl
       border border-ink-border/80 bg-transparent px-4 py-3 text-sm font-medium text-cream/75
       transition hover:border-ink-border hover:bg-ink-raised/70 hover:text-cream
       active:scale-[0.985];
   }
+
   .input {
     @apply w-full rounded-2xl border border-ink-border/80 bg-ink-soft px-4 py-3.5
       text-[15px] text-cream placeholder:text-ink-muted/80 outline-none transition
       focus:border-sage/45 focus:bg-ink-raised focus:ring-2 focus:ring-sage/15;
   }
+
   .label {
     @apply mb-1.5 block text-[12px] font-medium text-cream/45;
   }
+
+  /* Soft label — no tracking-widest chrome */
   .eyebrow {
-    @apply text-[11px] font-semibold uppercase tracking-[0.14em] text-sage/80;
+    @apply text-[11px] font-semibold text-sage/80;
   }
 }
 

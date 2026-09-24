@@ -36,7 +36,7 @@ export function QuotaPanel() {
           </span>
         ) : null}
       </div>
-      <div className="grid grid-cols-3 gap-3 sm:grid-cols-6">
+      <div className="grid grid-cols-3 gap-3">
         {primary.map((q) => {
           const value = Math.min(quotaProgress[q.key] ?? 0, q.targetMax ?? q.target)
           const max = q.target
@@ -53,7 +53,7 @@ export function QuotaPanel() {
           )
         })}
       </div>
-      <div className="mt-4 grid gap-2.5 border-t border-ink-border/50 pt-3.5 sm:grid-cols-2">
+      <div className="mt-4 grid gap-2.5 border-t border-ink-border/50 pt-3.5">
         {WEEKLY_QUOTAS.filter((q) =>
           ['lectures', 'homework', 'sleep', 'scalp'].includes(q.key),
         ).map((q) => {

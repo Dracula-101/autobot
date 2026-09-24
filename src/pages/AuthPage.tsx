@@ -62,7 +62,8 @@ export function AuthPage() {
   }
 
   return (
-    <div className="relative mx-auto flex min-h-dvh max-w-md flex-col justify-center px-5 py-12">
+    <div className="relative flex min-h-dvh w-full flex-col justify-center px-5 py-12">
+      <div className="relative mx-auto w-full max-w-md">
       <div
         aria-hidden
         className="pointer-events-none absolute inset-x-8 top-16 h-40 rounded-full bg-sage/10 blur-3xl"
@@ -203,7 +204,7 @@ export function AuthPage() {
       <div className="relative mt-5">
         <div className="mb-3 flex items-center gap-3">
           <div className="h-px flex-1 bg-ink-border/70" />
-          <span className="text-[11px] font-medium uppercase tracking-[0.12em] text-cream/30">or</span>
+          <span className="text-[11px] font-medium text-cream/30">or</span>
           <div className="h-px flex-1 bg-ink-border/70" />
         </div>
         <Link
@@ -216,6 +217,7 @@ export function AuthPage() {
           </div>
           <ArrowRight className="h-4 w-4 text-cream/40 transition group-hover:translate-x-0.5 group-hover:text-cream/70" />
         </Link>
+      </div>
       </div>
     </div>
   )

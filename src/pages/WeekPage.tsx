@@ -43,18 +43,21 @@ export function WeekPage() {
   }
 
   return (
-    <div className="animate-fade-up space-y-5">
+    <div className="animate-fade-up space-y-5 lg:space-y-6">
       <div>
-        <h2 className="text-xl font-semibold tracking-tight">Sunday scoreboard</h2>
-        <p className="mt-1 text-sm text-white/45">
+        <h2 className="font-display text-xl font-semibold tracking-tight text-cream lg:text-[1.35rem]">
+          Sunday scoreboard
+        </h2>
+        <p className="mt-1 text-sm text-cream/45">
           Week of {weekStart} · fill as you go
         </p>
       </div>
 
+      <div className="grid grid-cols-1 gap-5 xl:grid-cols-2 xl:gap-6">
       <section className="card overflow-hidden">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-ink-border/60 text-left text-[11px] uppercase tracking-wider text-ink-muted">
+            <tr className="border-b border-ink-border/60 text-left text-[11px] uppercase text-ink-muted">
               <th className="px-4 py-3 font-medium">Area</th>
               <th className="px-2 py-3 font-medium">Target</th>
               <th className="px-2 py-3 font-medium">Actual</th>
@@ -173,10 +176,11 @@ export function WeekPage() {
             ))}
           </div>
         </div>
-        <button type="button" onClick={() => void handleSave()} className="btn-primary w-full">
+        <button type="button" onClick={() => void handleSave()} className="btn-primary w-full sm:w-auto sm:min-w-[12rem]">
           {saved ? 'Saved ✓' : 'Save scoreboard'}
         </button>
       </section>
+      </div>
     </div>
   )
 }

@@ -24,7 +24,8 @@ export function OnboardingPage() {
   }
 
   return (
-    <div className="mx-auto flex min-h-dvh max-w-md flex-col justify-center px-5 py-12">
+    <div className="flex min-h-dvh w-full flex-col justify-center px-5 py-12">
+      <div className="mx-auto w-full max-w-md">
       <div className="mb-6">
         <div className="mb-4 inline-flex rounded-2xl border border-ink-border/70 bg-ink-card p-2.5 shadow-soft">
           <AutobotMascot mood="happy" size={48} />
@@ -109,6 +110,7 @@ export function OnboardingPage() {
             </div>
           </>
         )}
+      </div>
       </div>
     </div>
   )

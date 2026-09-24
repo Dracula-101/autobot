@@ -24,8 +24,9 @@ export function TodayPage() {
   }, [checked, checkInToday])
 
   return (
-    <div className="space-y-5">
-      <section className="relative overflow-hidden rounded-2xl border border-ink-border/70 bg-ink-card/90 px-4 py-4 shadow-soft">
+    <div className="space-y-5 lg:space-y-6">
+      {/* Buddy brief — spans full main width */}
+      <section className="panel relative overflow-hidden px-4 py-4 sm:px-5">
         <div
           aria-hidden
           className="pointer-events-none absolute -right-8 -top-10 h-32 w-32 rounded-full bg-sage/8 blur-3xl"
@@ -35,18 +36,29 @@ export function TodayPage() {
             <AutobotMascot mood="happy" size={48} />
           </div>
           <div className="min-w-0 pt-0.5">
-            <p className="font-display text-[1.15rem] font-semibold tracking-[-0.015em] text-cream">
+            <p className="font-display text-[1.15rem] font-semibold tracking-[-0.015em] text-cream sm:text-[1.25rem]">
               Hey {name} — I’m on it.
             </p>
-            <p className="mt-1.5 text-[13px] leading-relaxed text-cream/45">{brief}</p>
+            <p className="mt-1.5 max-w-3xl text-[13px] leading-relaxed text-cream/45 sm:text-[14px]">
+              {brief}
+            </p>
           </div>
         </div>
       </section>
 
-      <WeekStrip />
-      <ClassAttendance />
-      <QuotaPanel />
-      <TaskList />
+      {/* Desktop: primary + side columns; tablet: 2-col where possible; mobile: stack */}
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_360px] lg:gap-6 xl:gap-8">
+        <div className="min-w-0 space-y-5">
+          <WeekStrip />
+          <TaskList />
+        </div>
+
+        <aside className="min-w-0 space-y-5 lg:sticky lg:top-6 lg:self-start">
+          <ClassAttendance />
+          <QuotaPanel />
+        </aside>
+      </div>
+
       <BuddyChat />
     </div>
   )
