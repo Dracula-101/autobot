@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useApp } from '../context/AppContext'
 import { Link } from 'react-router-dom'
+import { AutobotMascot } from '../components/AutobotMascot'
 
 export function AuthPage() {
   const { signIn, signUp, supabaseConfigured } = useApp()
@@ -34,14 +35,17 @@ export function AuthPage() {
   return (
     <div className="mx-auto flex min-h-dvh max-w-md flex-col justify-center px-4 py-10">
       <div className="mb-8 text-center">
+        <div className="mb-3 flex justify-center">
+          <AutobotMascot mood="idle" size={56} />
+        </div>
         <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-sage">
-          Lock-in
+          Autobot
         </p>
         <h1 className="mt-2 text-2xl font-semibold tracking-tight">
           {mode === 'in' ? 'Welcome back' : 'Create your account'}
         </h1>
         <p className="mt-2 text-sm text-white/45">
-          Daily check-in for the Mon–Sun grind. One account is enough.
+          Your cute caretaker for the Mon–Sun grind. One account is enough.
         </p>
       </div>
 

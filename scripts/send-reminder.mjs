@@ -3,6 +3,7 @@
  * Miss-day reminder — runs in GitHub Actions (Node), never in the browser.
  * Queries Supabase for a day_checkins row for "today" in America/Denver.
  * If missing for the user matching REMINDER_TO_EMAIL, sends SMTP mail.
+ * Voice: Autobot — warm caretaker, not naggy.
  */
 import nodemailer from 'nodemailer'
 import { createClient } from '@supabase/supabase-js'
@@ -16,7 +17,7 @@ const {
   SMTP_USER,
   SMTP_PASS,
   SMTP_FROM,
-  PAGES_URL = 'https://pratikpujari.github.io/lockin-checkin/',
+  PAGES_URL = 'https://Dracula-101.github.io/autobot/',
 } = process.env
 
 function denverToday() {
@@ -92,26 +93,25 @@ async function main() {
     auth: { user: SMTP_USER, pass: SMTP_PASS },
   })
 
-  const subject = `Lock-in check-in missing for ${today}`
+  const subject = `Autobot checked in — you’re still open for ${today}`
   const text = `Hey ${name},
 
-Looks like today's lock-in check-in isn't logged yet (${today}, America/Denver).
+Just a soft nudge from Autobot — I haven’t seen today’s check-in yet (${today}, America/Denver).
 
-No stress — open the app, tap Check in, knock out what you can on campus.
+No stress. When you’re ready, open the app, check in with me, and knock out what you can on campus.
 
 ${PAGES_URL}
 
-— Lock-in
+— Autobot
 `
-
   const html = `
   <div style="font-family:system-ui,sans-serif;max-width:480px;line-height:1.5;color:#1a1a1a">
     <p>Hey ${name},</p>
-    <p>Looks like today's lock-in check-in isn't logged yet
+    <p>Just a soft nudge from <strong>Autobot</strong> — I haven’t seen today’s check-in yet
       (<strong>${today}</strong>, America/Denver).</p>
-    <p>No stress — open the app, tap <em>Check in</em>, knock out what you can on campus.</p>
+    <p>No stress. When you’re ready, open the app, <em>check in with me</em>, and knock out what you can on campus.</p>
     <p><a href="${PAGES_URL}" style="color:#3d7a5a">${PAGES_URL}</a></p>
-    <p style="color:#888;font-size:13px">— Lock-in</p>
+    <p style="color:#888;font-size:13px">— Autobot</p>
   </div>`
 
   await transporter.sendMail({

@@ -1,9 +1,9 @@
 {
-  "name": "lockin-checkin",
+  "name": "autobot",
   "private": true,
   "version": "1.0.0",
   "type": "module",
-  "homepage": "https://Dracula-101.github.io/lockin-checkin",
+  "homepage": "https://Dracula-101.github.io/autobot",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",

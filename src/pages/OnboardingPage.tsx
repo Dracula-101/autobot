@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useApp } from '../context/AppContext'
 import type { SportDay } from '../types'
+import { AutobotMascot } from '../components/AutobotMascot'
 
 export function OnboardingPage() {
   const { updateProfile, profile } = useApp()
@@ -26,12 +27,15 @@ export function OnboardingPage() {
 
   return (
     <div className="mx-auto flex min-h-dvh max-w-md flex-col justify-center px-4 py-10">
+      <div className="mb-1">
+        <AutobotMascot mood="happy" size={48} />
+      </div>
       <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-sage">
-        First run
+        Autobot
       </p>
-      <h1 className="mt-2 text-2xl font-semibold tracking-tight">Set up lock-in</h1>
+      <h1 className="mt-2 text-2xl font-semibold tracking-tight">Let’s set up your day</h1>
       <p className="mt-2 text-sm text-white/45">
-        Priorities: Job hunt → LeetCode → Fitness. Deep work on campus.
+        I’ll look after the checklist — Job hunt → LeetCode → Fitness. Deep work on campus.
       </p>
 
       <div className="mt-8 card space-y-5 p-5">
@@ -104,7 +108,7 @@ export function OnboardingPage() {
                 className="btn-primary flex-[2]"
                 onClick={() => void finish()}
               >
-                Start locking in
+                Meet Autobot
               </button>
             </div>
           </>

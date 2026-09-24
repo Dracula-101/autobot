@@ -1,9 +1,9 @@
 import { useMemo } from 'react'
-import { PartyPopper } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import { tasksForDay, DAY_META } from '../data/tasks'
 import { dayKeyOf, formatPretty } from '../lib/dates'
 import { TaskItem } from './TaskItem'
+import { AutobotMascot } from './AutobotMascot'
 
 export function TaskList() {
   const { selectedDate, sportDay, isTaskDone, toggleTask, today } = useApp()
@@ -15,6 +15,7 @@ export function TaskList() {
   const meta = DAY_META[dayKey]
   const doneCount = tasks.filter((t) => isTaskDone(selectedDate, t.id)).length
   const allDone = tasks.length > 0 && doneCount === tasks.length
+  const empty = tasks.length === 0
 
   // Group by section
   const sections = useMemo(() => {
@@ -55,11 +56,23 @@ export function TaskList() {
 
       {allDone ? (
         <div className="card flex items-center gap-3 border-sage/30 bg-sage/5 px-4 py-4">
-          <PartyPopper className="h-6 w-6 text-sage" />
+          <AutobotMascot mood="happy" size={40} />
           <div>
-            <p className="font-semibold text-sage">Day complete</p>
+            <p className="font-semibold text-sage">You made it — nice.</p>
             <p className="text-sm text-white/50">
               Stack finished. Protect wind-down — home ≠ grind.
+            </p>
+          </div>
+        </div>
+      ) : null}
+
+      {empty ? (
+        <div className="card flex items-center gap-3 px-4 py-5">
+          <AutobotMascot mood="sleep" size={40} />
+          <div>
+            <p className="font-semibold text-white/80">Quiet day</p>
+            <p className="text-sm text-white/45">
+              Nothing queued here. Rest, or peek at another day.
             </p>
           </div>
         </div>

@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { Sparkles, CheckCircle2 } from 'lucide-react'
 import { useApp } from '../context/AppContext'
+import { AutobotMascot } from './AutobotMascot'
 
 export function CheckInCTA() {
   const { today, selectedDate, isCheckedIn, checkInToday, checkins } = useApp()
@@ -24,10 +24,10 @@ export function CheckInCTA() {
     <div className="fixed inset-x-0 bottom-[calc(3.75rem+env(safe-area-inset-bottom))] z-30 px-4 pb-2">
       <div className="mx-auto max-w-lg">
         {done ? (
-          <div className="flex items-center justify-center gap-2 rounded-2xl border border-sage/30 bg-ink-card/95 px-4 py-3 shadow-card backdrop-blur-md">
-            <CheckCircle2 className="h-5 w-5 text-sage" />
+          <div className="flex items-center justify-center gap-2.5 rounded-2xl border border-sage/30 bg-ink-card/95 px-4 py-3 shadow-card backdrop-blur-md">
+            <AutobotMascot mood="happy" size={28} />
             <div className="text-sm">
-              <span className="font-semibold text-sage">Checked in</span>
+              <span className="font-semibold text-sage">You made it — nice.</span>
               <span className="ml-2 text-white/40">
                 {checkins[today]?.checked_in_at
                   ? new Date(checkins[today].checked_in_at).toLocaleTimeString([], {
@@ -45,8 +45,8 @@ export function CheckInCTA() {
             disabled={busy}
             className="btn-primary w-full shadow-[0_8px_32px_rgba(125,206,160,0.25)]"
           >
-            <Sparkles className="h-5 w-5" />
-            {busy ? 'Checking in…' : 'Check in for today'}
+            <AutobotMascot mood="nudge" size={26} className="shrink-0" />
+            {busy ? 'Checking in…' : 'Check in with me'}
           </button>
         )}
       </div>

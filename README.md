@@ -1,17 +1,19 @@
-# Lock-in Check-in
+# Autobot
 
-Daily Mon–Sun lock-in checklist PWA-style web app for **Pratik Pujari** (CU Boulder MS CS).
+Cute caretaker bot for **Pratik Pujari**’s daily lock-in (CU Boulder MS CS).
 
 **Priorities:** Job hunt → LeetCode → Fitness  
 **Rule:** Deep work on campus. Home ≠ grind.
 
-Live (after Pages deploy): `https://<user>.github.io/lockin-checkin/`
+Autobot watches the week, nudges gently, and celebrates check-ins — warm, refined, not childish spam.
+
+Live (after Pages deploy): `https://Dracula-101.github.io/autobot/`
 
 ---
 
 ## Design overview
 
-Dark, refined UI — not generic purple AI chrome.
+Dark, refined UI — not generic purple AI chrome. Soft robot personality layered on top.
 
 | Token | Value |
 |--------|--------|
@@ -22,10 +24,11 @@ Dark, refined UI — not generic purple AI chrome.
 | Missed | `#c97b84` muted rose |
 | Type | DM Sans + JetBrains Mono (counts) |
 
+- Inline SVG **Autobot** mascot (`idle` / `happy` / `nudge` / `sleep`)
 - Horizontal Mon–Sun week strip with today highlight
 - Weekly quota progress rings
 - Thumb-friendly 44px check targets, spring checkbox animation, strikethrough
-- Sticky **Check in for today** CTA (engagement ≠ finishing every task)
+- Sticky **Check in with me** CTA (engagement ≠ finishing every task)
 - Guest/localStorage mode when Supabase env is missing
 
 ---
@@ -33,7 +36,7 @@ Dark, refined UI — not generic purple AI chrome.
 ## Local development
 
 ```bash
-cd lockin-checkin
+cd lockin-checkin   # local folder name; repo/Pages path is autobot
 cp .env.example .env   # already present empty — paste keys when ready
 npm install
 npm run dev
@@ -84,7 +87,7 @@ See `.env.example`. Never commit real secrets (`.env` is gitignored).
 |----------|--------|---------|
 | `VITE_SUPABASE_URL` | `.env` + Pages secret | Browser Supabase client |
 | `VITE_SUPABASE_ANON_KEY` | `.env` + Pages secret | Browser anon key |
-| `VITE_BASE` | build | Defaults to `/lockin-checkin/` |
+| `VITE_BASE` | build | Defaults to `/autobot/` |
 | `SUPABASE_URL` | Actions secret | Reminder script (same URL) |
 | `SUPABASE_SERVICE_ROLE_KEY` | Actions secret | Server-side check-in query |
 | `REMINDER_TO_EMAIL` | Actions secret | Must match `profiles.reminder_email` |
@@ -95,7 +98,7 @@ See `.env.example`. Never commit real secrets (`.env` is gitignored).
 
 ## GitHub Pages deploy
 
-Repo must be named **`lockin-checkin`** (base path `/lockin-checkin/`), or set `VITE_BASE` accordingly.
+Repo should be named **`autobot`** (base path `/autobot/`), or set `VITE_BASE` accordingly.
 
 1. Push this project to GitHub (`git remote add origin … && git push -u origin main`).
 2. **Settings → Pages → Build and deployment** → Source: **GitHub Actions**.
@@ -106,7 +109,7 @@ Repo must be named **`lockin-checkin`** (base path `/lockin-checkin/`), or set `
 
 Optional local deploy: `npm run deploy` (uses `gh-pages` package) — Actions is preferred.
 
-`package.json` `homepage` is set to `https://Dracula-101.github.io/lockin-checkin` — change the username if needed.
+`package.json` `homepage` is set to `https://Dracula-101.github.io/autobot`.
 
 ---
 
@@ -114,6 +117,8 @@ Optional local deploy: `npm run deploy` (uses `gh-pages` package) — Actions is
 
 Workflow: `.github/workflows/daily-reminder.yml`  
 Script: `scripts/send-reminder.mjs` (Node + nodemailer — **not** in the browser)
+
+Autobot voice: warm soft nudge, never naggy.
 
 ### Schedule / timezone nuance
 
@@ -130,7 +135,7 @@ cron: '0 2 * * *'   # 02:00 UTC
 
 1. Resolve profile where `reminder_email = REMINDER_TO_EMAIL`
 2. Look for `day_checkins` row for Denver-today
-3. If missing → send a short, warm email with link to `PAGES_URL`
+3. If missing → send a short, warm Autobot email with link to `PAGES_URL`
 
 ### GitHub Secrets checklist
 

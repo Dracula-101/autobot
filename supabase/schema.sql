@@ -1,4 +1,4 @@
--- Lock-in Check-in schema
+-- Autobot (daily lock-in) schema
 -- Run in Supabase SQL Editor after creating the project.
 -- Enable Email auth under Authentication → Providers.
 

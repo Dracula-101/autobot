@@ -2,6 +2,7 @@ import { NavLink, Outlet } from 'react-router-dom'
 import { CalendarCheck, Settings, Trophy } from 'lucide-react'
 import { ConnectBanner } from './ConnectBanner'
 import { CheckInCTA } from './CheckInCTA'
+import { AutobotMascot } from './AutobotMascot'
 import { useApp } from '../context/AppContext'
 
 const nav = [
@@ -11,19 +12,23 @@ const nav = [
 ]
 
 export function Layout() {
-  const { profile } = useApp()
+  const { profile, isCheckedIn, today } = useApp()
   const name = profile.display_name || 'Pratik'
+  const mood = isCheckedIn(today) ? 'happy' : 'idle'
 
   return (
     <div className="mx-auto flex min-h-dvh max-w-lg flex-col px-4 pb-36 pt-6">
-      <header className="mb-5 flex items-center justify-between">
-        <div>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-sage/80">
-            Lock-in
-          </p>
-          <h1 className="text-lg font-semibold tracking-tight text-white">
-            Hey, {name.split(' ')[0]}
-          </h1>
+      <header className="mb-5 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <AutobotMascot mood={mood} size={42} />
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-sage/80">
+              Autobot
+            </p>
+            <h1 className="text-lg font-semibold tracking-tight text-white">
+              Hey, {name.split(' ')[0]}
+            </h1>
+          </div>
         </div>
         <p className="text-right text-[10px] leading-relaxed text-ink-muted">
           Job hunt → LC → Fitness

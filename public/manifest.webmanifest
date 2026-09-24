@@ -1,7 +1,7 @@
 {
-  "name": "Lock-in Check-in",
-  "short_name": "Lock-in",
-  "description": "Daily lock-in checklist — Job hunt → LeetCode → Fitness",
+  "name": "Autobot",
+  "short_name": "Autobot",
+  "description": "Cute caretaker for your daily lock-in — Job hunt → LeetCode → Fitness",
   "start_url": "./",
   "display": "standalone",
   "background_color": "#0c0d10",
