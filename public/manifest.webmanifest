@@ -1,0 +1,17 @@
+{
+  "name": "Lock-in Check-in",
+  "short_name": "Lock-in",
+  "description": "Daily lock-in checklist — Job hunt → LeetCode → Fitness",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#0c0d10",
+  "theme_color": "#0c0d10",
+  "icons": [
+    {
+      "src": "favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

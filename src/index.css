@@ -1,0 +1,59 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  background: #0c0d10;
+  background-image:
+    radial-gradient(ellipse 80% 50% at 50% -20%, rgba(125, 206, 160, 0.06), transparent),
+    radial-gradient(ellipse 60% 40% at 100% 0%, rgba(232, 184, 109, 0.04), transparent);
+}
+
+/* Soft scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-thumb {
+  background: #2a2e38;
+  border-radius: 999px;
+}
+
+@layer components {
+  .card {
+    @apply rounded-2xl border border-ink-border/80 bg-ink-card shadow-card;
+  }
+  .btn-primary {
+    @apply inline-flex min-h-touch items-center justify-center gap-2 rounded-xl
+      bg-sage px-5 py-3 font-semibold text-ink transition
+      hover:brightness-110 active:scale-[0.98] disabled:opacity-50;
+  }
+  .btn-ghost {
+    @apply inline-flex min-h-touch items-center justify-center gap-2 rounded-xl
+      border border-ink-border bg-ink-raised/50 px-4 py-2.5 text-sm text-white/80
+      transition hover:bg-ink-raised hover:text-white active:scale-[0.98];
+  }
+  .input {
+    @apply w-full rounded-xl border border-ink-border bg-ink-soft px-4 py-3
+      text-white placeholder:text-ink-muted outline-none transition
+      focus:border-sage/50 focus:ring-2 focus:ring-sage/20;
+  }
+}
+
+/* Checkbox strikethrough */
+.task-done .task-label {
+  text-decoration: line-through;
+  text-decoration-color: rgba(125, 206, 160, 0.45);
+  color: rgba(255, 255, 255, 0.4);
+}
