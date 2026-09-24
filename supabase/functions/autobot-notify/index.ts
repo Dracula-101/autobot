@@ -84,6 +84,7 @@ async function runCron(): Promise<Response> {
         missions: state.missions,
         contacts: state.contacts,
         logs: state.logs,
+        assignments: state.assignments,
         sentKeys: new Set((sent.data ?? []).map((r: { dedupe_key: string }) => r.dedupe_key)),
       })
       for (const r of due) {

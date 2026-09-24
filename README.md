@@ -27,6 +27,10 @@ to get push notifications on your phone.
 - **Hunt / Prep / Body.** Referral pipeline with follow-up tracking and AI-drafted asks, a
   sponsor-friendly company list with CU Boulder alumni search, a pattern-by-pattern LeetCode roadmap
   with spaced review, routines, workouts, and sleep consistency.
+- **Reads your other tools.** Profiles clipped into the LinkedIn Targets project become Hunt
+  *leads* (company, role and mutual connections worked out) with three rotating **Today's picks**
+  and AI connection notes. Assignments from the checker project fill the **School** page, show up
+  on Today and in the plan, and get pushes the day before and 3 hours before they're due.
 
 ## Architecture
 
@@ -41,6 +45,8 @@ GitHub Pages (Vite + React PWA)                 Supabase (project "AutoBot")
                └───────────────────────────────▶│  Gemini + tools, stores every turn   │
                                                 │ Edge Function autobot-notify         │
         phone ◀── Web Push (VAPID) ─────────────│  due reminders → push, deduped       │
+                                                │ Edge Function autobot-import         │
+     LinkedIn Targets, assignment checker ─────▶│  hourly: leads + assignments         │
                                                 │ pg_cron: every 5 min → notify        │
                                                 │ Vault: Gemini key, cron secret       │
                                                 └─────────────────────────────────────┘
@@ -67,7 +73,7 @@ npm run check:functions              # type-check Edge Functions (deno)
 ```bash
 npx supabase link --project-ref jpallbmetcrnzwzsmgbp
 npx supabase db push                                   # migrations in supabase/migrations
-npx supabase functions deploy autobot-chat autobot-notify
+npx supabase functions deploy autobot-chat autobot-notify autobot-import
 ```
 
 Secrets:
@@ -76,6 +82,8 @@ Secrets:
 |---|---|---|
 | Supabase function secret | `VAPID_KEYS` | Web Push signing keys (JSON) |
 | Supabase function secret | `ALLOWED_EMAILS` | Only these accounts can use the Gemini-backed chat |
+| Supabase function secret | `CONTACTS_SUPABASE_URL`, `CONTACTS_SERVICE_KEY` | LinkedIn Targets project, read by `autobot-import` |
+| Supabase function secret | `ASSIGNMENTS_SUPABASE_URL`, `ASSIGNMENTS_SERVICE_KEY` | Assignment checker project, read by `autobot-import` |
 | Supabase Vault | `gemini_api_key` | Synced from the GitHub secret by the deploy workflow |
 | Supabase Vault | `autobot_cron_secret` | Generated in-database; shared by pg_cron and the notify function |
 | GitHub secret | `GEMINI_API_KEY` (or legacy `VITE_GEMINI_API_KEY`) | Source for the Vault copy — never bundled into the site |

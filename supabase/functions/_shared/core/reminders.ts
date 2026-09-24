@@ -2,7 +2,7 @@
 // minutes; each reminder has a scheduled time and a validity window, so a late
 // cron tick still delivers and a duplicate tick is a no-op (dedupe keys).
 
-import type { Checkin, Contact, LogEntry, Mission, Routine, RoutineLog, Settings } from './types.ts'
+import type { Assignment, Checkin, Contact, LogEntry, Mission, Routine, RoutineLog, Settings } from './types.ts'
 import {
   dayMinutes,
   formatClock,
@@ -26,6 +26,7 @@ import {
   currentMoment,
 } from './schedule.ts'
 import { cellStates, describeCells } from './charge.ts'
+import { assignmentDone, courseShort, upcomingAssignments } from './sources.ts'
 import { fill, joinNames, NUDGE_COPY, pick, tomorrowLine } from './voice.ts'
 
 export interface ReminderContext {
@@ -37,6 +38,7 @@ export interface ReminderContext {
   missions: Mission[]
   contacts: Contact[]
   logs: LogEntry[]
+  assignments?: Assignment[]
   sentKeys: Set<string>
 }
 
@@ -240,6 +242,37 @@ export function reminderSlots(ctx: ReminderContext): Slot[] {
     }
   }
 
+  if (s.notify.deadlines) {
+    for (const a of upcomingAssignments(ctx.assignments ?? [], ctx.now, 3)) {
+      const due = new Date(a.due_at!)
+      const course = courseShort(a.course, s.classes)
+      const label = `${a.title}${course ? ` (${course})` : ''}`
+      if (logicalDay(due, s.rolloverHour) === addDays(date, 1)) {
+        slots.push({
+          key: `due:${a.id}:eve`,
+          at: (wake ?? wakeDefault) + 120,
+          window: 600,
+          build: () =>
+            assignmentDone(a)
+              ? null
+              : {
+                  title: '📚 Due tomorrow',
+                  body: `${label} — due ${formatClock(minutesOnDay(due, addDays(date, 1)))}.`,
+                  url: '/school',
+                  tag: `due-${a.id}`,
+                },
+        })
+      }
+      slots.push({
+        key: `due:${a.id}:soon`,
+        at: minutesOnDay(new Date(due.getTime() - 3 * 3_600_000), date),
+        window: 170,
+        build: () =>
+          assignmentDone(a) ? null : { title: '⏰ Due in 3 hours', body: label, url: '/school', tag: `due-${a.id}` },
+      })
+    }
+  }
+
   if (s.notify.followups) {
     slots.push({
       key: `followups:${date}`,
@@ -311,6 +344,7 @@ const SLOT_LABELS: [prefix: string, label: string][] = [
   ['followups:', 'Follow-ups (only if any are due)'],
   ['weekly:', 'Week wrap'],
   ['routine:', 'Routine'],
+  ['due:', 'Assignment deadline'],
 ]
 
 function slotLabel(key: string): string {

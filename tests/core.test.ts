@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import {
+  assignmentDone,
+  assignmentsFromChecks,
   classesOn,
+  courseShort,
+  lastCheck,
+  upcomingAssignments,
   DEFAULT_SETTINGS,
   dayMinutes,
   dayType,
@@ -11,8 +16,17 @@ import {
   planDay,
   seedRoutines,
   cellStates,
+  companyOf,
+  dailyPicks,
   diffPlan,
   dayGain,
+  isUS,
+  normalizeProfile,
+  parseMutuals,
+  planContext,
+  roleOf,
+  type Assignment,
+  type Lead,
   skyPhase,
   speak,
   stableId,
@@ -284,5 +298,142 @@ describe('voice', () => {
     const s = speak({ ...ctx, nowMins: 11 * 60 + 30 })
     expect(s.mood).toBe('focused')
     expect(s.text).toContain('Linux at 12:30 PM')
+  })
+
+  it('puts a close deadline first, but not a far one', () => {
+    const dueSoon = { title: 'HW3', course: 'Graphics', minutesLeft: 150 }
+    const s = speak({ ...ctx, type: 'free', classes: [], nowMins: 20 * 60, dueSoon })
+    expect(s.text).toBe('HW3 (Graphics) is due in 2h 30m. That comes first — everything else can wait.')
+    expect(speak({ ...ctx, type: 'free', classes: [], nowMins: 20 * 60, dueSoon: { ...dueSoon, minutesLeft: 45 } }).mood).toBe('worried')
+    expect(speak({ ...ctx, type: 'free', classes: [], nowMins: 20 * 60, dueSoon: { ...dueSoon, minutesLeft: 900 } }).text).not.toContain('HW3')
+  })
+})
+
+describe('sources', () => {
+  it('finds the real company in messy fields and headlines', () => {
+    expect(companyOf('Tesla 🤖🚗🦾⚡️', 'Recruiting Leader at Tesla')).toBe('Tesla')
+    expect(companyOf('', 'Senior Recruiter | Tesla')).toBe('Tesla')
+    expect(companyOf('Last Mile', 'Engineering Manager Amazon @ Last Mile | Ex-Microsoft @ Azure')).toBe('Amazon')
+    expect(companyOf('', 'ᴛᴀʟᴇɴᴛ ᴀᴄQᴜɪꜱɪᴛɪᴏɴ ꜱᴘᴇᴄɪᴀʟɪꜱᴛ @ᴀᴍᴀᴢᴏɴ')).toBe('Amazon')
+    expect(companyOf('Amazon Web Services (AWS)', '')).toBe('Amazon')
+    expect(companyOf('', 'Technical Recruiter | Certified Talent Advisor')).toBe('')
+  })
+
+  it('tells new-grad recruiters, recruiters, managers and engineers apart', () => {
+    expect(roleOf('Recruiter, Amazon University Talent Acquisition')).toBe('university')
+    expect(roleOf('Full Lifecycle University Recruiter')).toBe('university')
+    expect(roleOf('Staff Recruiter, Charging at Tesla')).toBe('recruiter')
+    expect(roleOf('Talent Acquisition Manager')).toBe('recruiter')
+    expect(roleOf('Engineering Manager @ Amazon')).toBe('manager')
+    expect(roleOf('Sr. SDM at Amazon')).toBe('manager')
+    expect(roleOf('Software Development Engineer at Oracle')).toBe('engineer')
+  })
+
+  it('reads mutual connections from the clipped summary line', () => {
+    expect(parseMutuals('Asha Rao, Ben Cole & 2 other mutual connections')).toEqual({ count: 4, names: ['Asha Rao', 'Ben Cole'] })
+    expect(parseMutuals('Asha Rao & Ben Cole are mutual connections')).toEqual({ count: 2, names: ['Asha Rao', 'Ben Cole'] })
+    expect(parseMutuals('Asha Rao is a mutual connection')).toEqual({ count: 1, names: ['Asha Rao'] })
+    expect(parseMutuals('')).toEqual({ count: 0, names: [] })
+  })
+
+  it('flags leads outside the US', () => {
+    expect(isUS('Austin, Texas, United States')).toBe(true)
+    expect(isUS('Greater Seattle Area')).toBe(true)
+    expect(isUS('Bengaluru, Karnataka, India')).toBe(false)
+  })
+
+  const lead = (id: string, raw: Parameters<typeof normalizeProfile>[0], extra: Partial<Lead> = {}): Lead => ({
+    ...normalizeProfile(raw),
+    id,
+    hidden: false,
+    contact_id: null,
+    ...extra,
+  })
+  const leads: Lead[] = [
+    lead('a', { id: 1, name: 'Ana', headline: 'University Recruiter at Amazon', location: 'Seattle, Washington, United States', summary: 'Asha Rao is a mutual connection' }),
+    lead('b', { id: 2, name: 'Bo', headline: 'Early Career Recruiter | Amazon', location: 'United States', summary: 'Asha Rao & Ben Cole are mutual connections' }),
+    lead('c', { id: 3, name: 'Cy', headline: 'Campus Recruiter at Amazon', location: 'United States' }),
+    lead('d', { id: 4, name: 'Di', headline: 'Senior Recruiter at Tesla', location: 'Austin, Texas, United States' }),
+    lead('e', { id: 5, name: 'Ed', headline: 'University Recruiter at Oracle', location: 'Bengaluru, Karnataka, India' }),
+    lead('f', { id: 6, name: 'Fa', headline: 'Recruiter at Tesla', location: 'United States' }, { contact_id: 'x' }),
+  ]
+
+  it('picks warm new-grad recruiters first, at most two per company, skipping ones already in the pipeline', () => {
+    const picks = dailyPicks(leads, { targets: [], jobCompanies: new Set() }, '2026-09-24', 3)
+    expect(picks.map((l) => l.company)).toEqual(['Amazon', 'Amazon', 'Tesla'])
+    expect(picks.map((l) => l.id)).not.toContain('f')
+    expect(picks.map((l) => l.id)).not.toContain('e')
+  })
+
+  it('names a real person and the most urgent assignment in the plan', () => {
+    const assignments: Assignment[] = [
+      { id: 'as1', source: 'checker', source_id: '1', title: 'HW3: Shading', course: 'CSCI 5229-001', due_at: '2026-09-26T05:59:00Z', url: '', source_status: 'open' },
+      { id: 'as2', source: 'checker', source_id: '2', title: 'Lab 2', course: 'CSCI 5113', due_at: '2026-09-22T05:59:00Z', url: '', source_status: 'open', done_at: '2026-09-21T00:00:00Z' },
+    ]
+    const context = planContext({
+      date: '2026-09-23',
+      problems: [],
+      contacts: [],
+      jobs: [],
+      leads,
+      assignments,
+      classes: S.classes,
+      now: new Date('2026-09-23T18:00:00Z'),
+    })
+    expect(context.nextContact?.detail).toMatch(/New-grad recruiter/)
+    expect(context.nextAssignment).toMatchObject({ title: 'HW3: Shading', course: 'Graphics' })
+    const plan = planDay({ userId: USER, date: '2026-09-23', settings: S, logs: [], context })
+    expect(plan.find((m) => m.key === 'plan:coursework')?.title).toBe('Work on HW3: Shading')
+    expect(plan.find((m) => m.key === 'plan:hunt')?.title).toMatch(/^Reach out to (Ana|Bo|Cy) at Amazon$/)
+  })
+
+  it('reads checker statuses without mistaking "not submitted" for done', () => {
+    const done = (source_status: string, done_at: string | null = null) => assignmentDone({ source_status, done_at })
+    expect(done('')).toBe(false)
+    expect(done('submitted')).toBe(true)
+    expect(done('Graded')).toBe(true)
+    expect(done('Not submitted')).toBe(false)
+    expect(done('not yet submitted')).toBe(false)
+    expect(done('unsubmitted')).toBe(false)
+    expect(done('incomplete')).toBe(false)
+    expect(done('missing', '2026-09-20T00:00:00Z')).toBe(true)
+  })
+
+  it('collapses repeated checker rows into one assignment per Canvas link', () => {
+    const url = 'https://canvas.colorado.edu/courses/111/assignments/222'
+    const checks = [
+      { id: 1, assignment_name: 'Lab 9:  Test  Lab', course_name: 'CSCI 4113-5030-5113-001:Linux System Administration/Fund Sys Admin', due_at: '2026-10-01T05:59:00Z', url, status: 'upcoming', checked_at: '2026-09-20T17:00:00Z' },
+      { id: 2, assignment_name: 'Lab 9: Test Lab', course_name: 'CSCI 4113-5030-5113-001:Linux System Administration/Fund Sys Admin', due_at: '2026-10-02T05:59:00Z', url, status: 'upcoming', checked_at: '2026-09-22T17:00:00Z' },
+      { id: 3, assignment_name: 'HW 9', course_name: 'CSCI 4229-5229-001:Computer Graphics', due_at: '2026-09-30T05:59:00Z', url: '', status: 'upcoming', checked_at: '2026-09-21T17:00:00Z' },
+    ]
+    const list = assignmentsFromChecks(checks)
+    expect(list).toHaveLength(2)
+    const lab = list.find((a) => a.source_id === 'canvas:111:222')!
+    expect(lab).toMatchObject({ title: 'Lab 9: Test Lab', due_at: '2026-10-02T05:59:00Z', checked_at: '2026-09-22T17:00:00Z' })
+    expect(courseShort(lab.course, S.classes)).toBe('Linux')
+    expect(courseShort('CSCI 4229-5229-001:Computer Graphics', S.classes)).toBe('Graphics')
+    expect(courseShort('CSCI 4830-001:Special Topics/Robotics', S.classes)).toBe('Special Topics')
+  })
+
+  it('treats only not-yet-due work as upcoming, and knows when the checker last reported', () => {
+    const now = new Date('2026-09-24T22:00:00Z')
+    const base = { source: 'checker', course: 'CSCI 5229', url: '', source_status: 'upcoming' }
+    const list: Assignment[] = [
+      { ...base, id: 'a', source_id: 'a', title: 'Past', due_at: '2026-09-24T20:00:00Z', checked_at: '2026-09-20T17:17:00Z' },
+      { ...base, id: 'b', source_id: 'b', title: 'Next', due_at: '2026-09-25T05:59:00Z', checked_at: '2026-09-16T17:56:00Z' },
+      { ...base, id: 'c', source_id: 'c', title: 'Done early', due_at: '2026-09-26T05:59:00Z', done_at: '2026-09-24T00:00:00Z' },
+    ]
+    expect(upcomingAssignments(list, now).map((a) => a.title)).toEqual(['Next'])
+    expect(lastCheck(list)).toBe('2026-09-20T17:17:00Z')
+  })
+
+  it('reminds about a deadline the day before and three hours before', () => {
+    const a: Assignment = { id: 'as1', source: 'checker', source_id: '1', title: 'HW3', course: 'CSCI 5229', due_at: '2026-09-25T05:59:00Z', url: '', source_status: 'open' }
+    const ctx = (now: Date): ReminderContext => ({
+      now, settings: S, routines: [], routineLogs: [], checkin: null, missions: [], contacts: [], logs: [], assignments: [a], sentKeys: new Set(),
+    })
+    expect(dueReminders(ctx(at('2026-09-23', '12:45'))).map((r) => r.key)).toContain('due:as1:eve')
+    expect(dueReminders(ctx(new Date('2026-09-25T03:00:00Z'))).map((r) => r.key)).toContain('due:as1:soon')
+    expect(dueReminders(ctx(new Date('2026-09-25T03:00:00Z')))[0]?.title).toBe('⏰ Due in 3 hours')
   })
 })

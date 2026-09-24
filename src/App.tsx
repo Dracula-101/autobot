@@ -11,6 +11,7 @@ import { BodyPage } from './pages/Body'
 import { MePage } from './pages/Me'
 import { MemoryPage } from './pages/Memory'
 import { ChangesPage } from './pages/Changes'
+import { SchoolPage } from './pages/School'
 import { AuthPage } from './pages/Auth'
 import { WelcomePage } from './pages/Welcome'
 
@@ -59,6 +60,7 @@ export default function App() {
         <Route path="hunt" element={<HuntPage />} />
         <Route path="prep" element={<PrepPage />} />
         <Route path="body" element={<BodyPage />} />
+        <Route path="school" element={<SchoolPage />} />
         <Route path="me" element={<MePage />} />
         <Route path="me/memory" element={<MemoryPage />} />
         <Route path="me/changes" element={<ChangesPage />} />

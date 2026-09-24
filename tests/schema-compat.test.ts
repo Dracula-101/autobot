@@ -5,7 +5,17 @@
 
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { DEFAULT_SETTINGS, seedRoutines, type Contact, type Job, type Mission } from '@core/index.ts'
+import {
+  DEFAULT_SETTINGS,
+  normalizeAssignment,
+  normalizeProfile,
+  seedRoutines,
+  type Assignment,
+  type Contact,
+  type Job,
+  type Lead,
+  type Mission,
+} from '@core/index.ts'
 import { SyncStore, TABLES } from '../src/lib/sync'
 import { createActions } from '../src/lib/actions'
 
@@ -42,6 +52,28 @@ describe.skipIf(!path)('rows written by the app match the live schema', () => {
     a.saveMemory({ content: 'Likes the library', category: 'habit' })
     a.saveReview('2026-09-21', { win: 'Sent 8 asks' })
     store.upsert('chat_messages', { id: crypto.randomUUID(), role: 'user', content: 'hi', actions: [], meta: {} } as never)
+
+    // Imported rows arrive from the server; the app only links, hides, or finishes them.
+    const serverRow = { user_id: store.userId, created_at: '', updated_at: '', deleted_at: null }
+    const lead = {
+      ...normalizeProfile({ id: 7, name: 'Ana Test', headline: 'University Recruiter at Amazon', summary: 'Bo is a mutual connection' }),
+      ...serverRow,
+      id: crypto.randomUUID(),
+      contact_id: null,
+      hidden: false,
+    } as Lead
+    store.ingest('leads', [lead])
+    const { contact: fromLead } = a.leadToContact(lead, 'messaged')
+    a.deleteContact(fromLead)
+    a.hideLead(store.get<Lead>('leads', lead.id)!)
+    const assignment = {
+      ...normalizeAssignment({ id: 3, assignment_name: 'HW3', course_name: 'CSCI 5229', due_at: '2026-09-26T05:59:00Z' }),
+      ...serverRow,
+      id: crypto.randomUUID(),
+      done_at: null,
+    } as Assignment
+    store.ingest('assignments', [assignment])
+    a.setAssignmentDone(assignment, true)
 
     for (const table of TABLES) {
       for (const row of store.all(table)) {

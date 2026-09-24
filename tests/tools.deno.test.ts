@@ -10,8 +10,11 @@ import {
   planContext,
   planDay,
   seedRoutines,
+  stableId,
+  type Assignment,
   type Contact,
   type Job,
+  type Lead,
 } from '../supabase/functions/_shared/core/index.ts'
 import type { Db } from '../supabase/functions/_shared/db.ts'
 
@@ -72,6 +75,20 @@ function state(): UserState {
     contacts,
     jobs,
     problems: [],
+    leads: [
+      {
+        id: 'd0000000-0000-4000-8000-000000000001', source: 'linkedin', source_id: '7', name: 'Ana Test',
+        url: 'https://www.linkedin.com/in/ana-test', headline: 'University Recruiter at Amazon', company: 'Amazon',
+        company_raw: 'Amazon', role_kind: 'university', location: 'Seattle, WA', us: true, mutuals: 1,
+        mutual_names: 'Bo Test', contact_id: null, hidden: false,
+      } satisfies Lead,
+    ],
+    assignments: [
+      {
+        id: 'e0000000-0000-4000-8000-000000000001', source: 'checker', source_id: '3', title: 'HW3: Shading',
+        course: 'CSCI 5229', due_at: '2026-09-26T05:59:00Z', url: '', source_status: '', done_at: null,
+      } satisfies Assignment,
+    ],
     checkin: null,
     history: [],
   }
@@ -161,6 +178,34 @@ Deno.test('messaging a contact logs a referral ask and schedules a follow-up', a
   assert(writes.some((w) => w.table === 'logs' && w.row.kind === 'referral' && w.row.amount === 1))
 })
 
+Deno.test('saving a lead fills in their details and links the lead to the new contact', async () => {
+  const writes: Write[] = []
+  const st = state()
+  const tb = new Toolbox(fakeDb(writes), st)
+  const res = await tb.run(call('save_contact', { name: 'Ana Test', lead: 'l:d0000000', status: 'messaged' }))
+  assertEquals(res.ok, true)
+  const contact = writes.find((w) => w.table === 'contacts')!.row
+  assertEquals(contact.id, stableId(`${USER}:lead-contact:d0000000-0000-4000-8000-000000000001`))
+  assertEquals([contact.company, contact.channel, contact.handle], ['Amazon', 'linkedin', 'https://www.linkedin.com/in/ana-test'])
+  const link = writes.find((w) => w.table === 'leads' && w.op === 'update')!
+  assertEquals(link.row.contact_id, contact.id)
+  assert(writes.some((w) => w.table === 'logs' && w.row.kind === 'referral'))
+  // Saving again (e.g. a follow-up) updates the same person instead of adding a second one.
+  await tb.run(call('save_contact', { name: 'Ana', lead: 'l:d0000000', followed_up: true }))
+  assertEquals(new Set(writes.filter((w) => w.table === 'contacts').map((w) => w.row.id)).size, 1)
+})
+
+Deno.test('finish_assignment marks it done and can reopen it', async () => {
+  const writes: Write[] = []
+  const st = state()
+  const tb = new Toolbox(fakeDb(writes), st)
+  assertEquals((await tb.run(call('finish_assignment', { ref: 'a:e0000000' }))).ok, true)
+  assertEquals(typeof writes.find((w) => w.table === 'assignments')!.row.done_at, 'string')
+  await tb.run(call('finish_assignment', { ref: 'a:e0000000', done: false }))
+  assertEquals(writes.filter((w) => w.table === 'assignments').at(-1)!.row.done_at, null)
+  assertEquals((await tb.run(call('finish_assignment', { ref: 'a:ffff' }))).ok, false)
+})
+
 Deno.test('mark_routine picks the night serum in the evening', async () => {
   const writes: Write[] = []
   const st = state()
@@ -215,6 +260,8 @@ Deno.test({
     await tb.run(call('update_settings', { key: 'voice', value: 'gentle' }))
     await tb.run(call('save_contact', { name: 'Priya', company: 'Google', followed_up: true }))
     await tb.run(call('set_energy', { level: 'high' }))
+    await tb.run(call('save_contact', { name: 'Ana Test', lead: 'l:d0000000', status: 'messaged' }))
+    await tb.run(call('finish_assignment', { ref: 'a:e0000000' }))
     for (const w of writes.filter((w) => w.op !== 'batch')) {
       const extra = Object.keys(w.row).filter((k) => !columns[w.table]?.includes(k))
       assertEquals(extra, [], `${w.table} ${w.op} has unknown columns`)

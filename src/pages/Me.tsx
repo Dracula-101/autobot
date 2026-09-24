@@ -1,6 +1,18 @@
-import { useState, type ReactNode } from 'react'
-import { Link } from 'react-router-dom'
-import { BatteryCharging, Brain, ChevronRight, History, LogOut, Plus, Trash2 } from 'lucide-react'
+import { useEffect, useState, type ReactNode } from 'react'
+import { Link, useLocation } from 'react-router-dom'
+import {
+  BatteryCharging,
+  Brain,
+  ChevronRight,
+  GraduationCap,
+  History,
+  LogOut,
+  Plus,
+  RefreshCw,
+  Trash2,
+  Users,
+  type LucideIcon,
+} from 'lucide-react'
 import {
   DAY_KEYS,
   DAY_NAMES,
@@ -17,6 +29,7 @@ import {
 } from '@core/index.ts'
 import { useApp, useRows } from '../lib/app'
 import { useActions } from '../lib/useActions'
+import { ago, healthy, useSources, type SourceSync } from '../lib/sources'
 import type { SyncRow } from '../lib/sync'
 import { Autobot } from '../components/Autobot'
 import { NotificationSettings } from '../components/Notifications'
@@ -25,12 +38,107 @@ import { Sheet } from '../components/Sheet'
 import { useToast } from '../components/Toast'
 import { Segmented, SectionTitle } from '../components/ui'
 
-function Card({ title, hint, children }: { title: string; hint?: string; children: ReactNode }) {
+function Card({ title, hint, id, children }: { title: string; hint?: string; id?: string; children: ReactNode }) {
   return (
-    <section className="mt-6">
+    <section id={id} className="mt-6 scroll-mt-6">
       <SectionTitle title={title} hint={hint} />
       <div className="card p-4">{children}</div>
     </section>
+  )
+}
+
+function SourceRow({
+  icon: Icon,
+  tone,
+  name,
+  what,
+  unit,
+  sync,
+  to,
+}: {
+  icon: LucideIcon
+  tone: string
+  name: string
+  what: string
+  unit: string
+  sync: SourceSync | undefined
+  to: string
+}) {
+  const ok = healthy(sync)
+  const status = !sync
+    ? 'Waiting for the first sync'
+    : ok
+      ? `${sync.rows} ${unit} · synced ${ago(sync.last_ok!)}`
+      : sync.message || 'Last sync failed'
+  return (
+    <li>
+      <Link to={to} className="flex items-center gap-3 py-3">
+        <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl ${tone}`}>
+          <Icon className="h-5 w-5" strokeWidth={2.4} aria-hidden />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-[15px] font-extrabold text-ink">{name}</span>
+          <span className="block text-[13px] font-semibold text-ink-3">{what}</span>
+          <span className={`mt-0.5 flex items-start gap-1.5 text-[12px] font-bold ${ok ? 'text-ink-3' : sync ? 'text-amber' : 'text-ink-3'}`}>
+            <span
+              className={`mt-[5px] h-2 w-2 shrink-0 rounded-full ${ok ? 'bg-mint' : sync ? 'bg-amber' : 'bg-ink-3'}`}
+              aria-hidden
+            />
+            <span className="min-w-0 break-words">{status}</span>
+          </span>
+        </span>
+        <ChevronRight className="h-5 w-5 shrink-0 text-ink-3" aria-hidden />
+      </Link>
+    </li>
+  )
+}
+
+function Sources() {
+  const toast = useToast()
+  const { linkedin, checker, busy, syncNow, available } = useSources()
+  if (!available) {
+    return <p className="text-[14px] font-semibold text-ink-3">Sign in to connect your LinkedIn list and assignment checker.</p>
+  }
+  return (
+    <>
+      <ul className="-my-1 divide-y divide-line">
+        <SourceRow
+          icon={Users}
+          tone="bg-a-hunt/12 text-a-hunt"
+          name="LinkedIn Targets"
+          what="People you clip become Hunt leads and daily picks"
+          unit="profiles"
+          sync={linkedin}
+          to="/hunt?tab=leads"
+        />
+        <SourceRow
+          icon={GraduationCap}
+          tone="bg-a-class/12 text-a-class"
+          name="Assignment checker"
+          what="Deadlines go to School, your plan, and reminders"
+          unit="assignments"
+          sync={checker}
+          to="/school"
+        />
+      </ul>
+      <button
+        type="button"
+        className="btn-soft btn-sm mt-3"
+        disabled={busy}
+        onClick={() =>
+          void syncNow().then((r) => {
+            if (typeof r === 'string') toast(r)
+            else {
+              const changed = r.reduce((n, x) => n + x.written + x.removed, 0)
+              const failed = r.filter((x) => !x.ok).length
+              toast(failed ? 'Synced what I could — one source needs attention' : changed ? `Synced · ${changed} updates` : 'Everything’s up to date')
+            }
+          })
+        }
+      >
+        <RefreshCw className={`h-4 w-4 ${busy ? 'animate-spin' : ''}`} /> {busy ? 'Syncing…' : 'Sync now'}
+      </button>
+    </>
   )
 }
 
@@ -228,6 +336,11 @@ export function MePage() {
   const routines = live(useRows<Routine>('routines')).sort((a, b) => a.sort - b.sort)
   const [routineSheet, setRoutineSheet] = useState<{ routine: Routine | null } | null>(null)
   const [displayName, setDisplayName] = useState(profile?.display_name ?? name)
+  const { hash } = useLocation()
+
+  useEffect(() => {
+    if (hash) document.getElementById(hash.slice(1))?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }, [hash])
 
   return (
     <div className="page">
@@ -265,6 +378,10 @@ export function MePage() {
           <ChevronRight className="h-5 w-5 text-ink-3" />
         </Link>
       </div>
+
+      <Card id="sources" title="Sources" hint="Where else I read from. I check them every hour.">
+        <Sources />
+      </Card>
 
       <Card title="Notifications" hint="How I tap you on the shoulder when the app is closed">
         <NotificationSettings />

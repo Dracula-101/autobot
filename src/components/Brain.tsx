@@ -4,6 +4,7 @@ import { useApp, useRows, useSyncStatus } from '../lib/app'
 import { useNow } from '../lib/clock'
 import { useActions } from '../lib/useActions'
 import { api } from '../lib/api'
+import { IMPORT_KEY } from '../lib/sources'
 import type { SyncRow } from '../lib/sync'
 import { cheer } from './Autobot'
 
@@ -64,6 +65,30 @@ export function Brain() {
     }
     if (completed) cheer()
   }, [missions, logs, date, hydrated, store])
+
+  // LinkedIn Targets + assignment checker: refresh on open (the server also syncs hourly).
+  useEffect(() => {
+    if (!cloud || !user || !hydrated || !store) return
+    const run = () => {
+      if (document.visibilityState !== 'visible') return
+      const key = IMPORT_KEY
+      try {
+        if (Date.now() - Number(localStorage.getItem(key) ?? 0) < 30 * 60_000) return
+        localStorage.setItem(key, String(Date.now()))
+      } catch {
+        return
+      }
+      api
+        .importSources()
+        .then((r) => {
+          if (r.results.some((x) => x.written || x.removed)) void store.refresh()
+        })
+        .catch(() => {})
+    }
+    run()
+    document.addEventListener('visibilitychange', run)
+    return () => document.removeEventListener('visibilitychange', run)
+  }, [cloud, user, hydrated, store])
 
   useEffect(() => {
     if (!cloud || !user || !hydrated || !store) return

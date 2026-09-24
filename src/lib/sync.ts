@@ -14,12 +14,14 @@ export const TABLES = [
   'logs',
   'memories',
   'contacts',
+  'leads',
   'jobs',
   'problems',
   'reviews',
   'chat_messages',
   'activity',
   'day_checkins',
+  'assignments',
 ] as const
 export type Table = (typeof TABLES)[number]
 

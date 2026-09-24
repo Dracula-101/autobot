@@ -19,6 +19,7 @@ export const COMPANIES: Company[] = [
   { name: 'Salesforce', domains: ['salesforce.com'], careers: 'https://careers.salesforce.com/en/jobs/?search=new+grad' },
   { name: 'Adobe', domains: ['adobe.com'], careers: 'https://careers.adobe.com/us/en/search-results?keywords=university' },
   { name: 'Oracle', domains: ['oracle.com'], careers: 'https://careers.oracle.com/' },
+  { name: 'Tesla', domains: ['tesla.com'], careers: 'https://www.tesla.com/careers/search/?query=software%20engineer' },
   { name: 'IBM', domains: ['ibm.com'], careers: 'https://www.ibm.com/careers/search?q=software%20engineer%20entry', colorado: 'Boulder' },
   { name: 'Intel', domains: ['intel.com'], careers: 'https://jobs.intel.com/' },
   { name: 'AMD', domains: ['amd.com'], careers: 'https://careers.amd.com/', colorado: 'Fort Collins' },

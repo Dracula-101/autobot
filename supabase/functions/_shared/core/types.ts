@@ -44,6 +44,7 @@ export interface NotifyPrefs {
   classes: boolean
   bedtime: boolean
   followups: boolean
+  deadlines: boolean
   nudges: boolean
   weekly: boolean
   /** Minutes before the first class of the day */
@@ -220,4 +221,38 @@ export interface NotificationRow {
   url?: string | null
   sent_at: string
   delivered: number
+}
+
+export type RoleKind = 'university' | 'recruiter' | 'manager' | 'engineer' | 'other'
+
+/** A LinkedIn profile he clipped — imported, never edited except pipeline link / hidden. */
+export interface Lead extends Row {
+  source: string
+  source_id: string
+  name: string
+  url: string
+  headline: string
+  company: string
+  company_raw: string
+  role_kind: RoleKind
+  location: string
+  us: boolean
+  mutuals: number
+  mutual_names: string
+  clipped_at?: string | null
+  contact_id?: string | null
+  hidden: boolean
+}
+
+/** A course assignment from his checker. done_at is Autobot's own. */
+export interface Assignment extends Row {
+  source: string
+  source_id: string
+  title: string
+  course: string
+  due_at?: string | null
+  url: string
+  source_status: string
+  checked_at?: string | null
+  done_at?: string | null
 }

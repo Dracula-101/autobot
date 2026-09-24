@@ -8,3 +8,6 @@ verify_jwt = false
 
 [functions.autobot-notify]
 verify_jwt = false
+
+[functions.autobot-import]
+verify_jwt = false

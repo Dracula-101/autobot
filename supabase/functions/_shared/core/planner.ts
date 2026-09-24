@@ -4,19 +4,37 @@
 // apply to, the next roadmap problem). Deterministic: two devices planning the
 // same day produce identical rows.
 
-import type { Cell, Contact, DayType, Energy, Job, LogEntry, Mission, Moment, Problem, Settings, Size, TargetKey } from './types.ts'
+import type {
+  Assignment,
+  Cell,
+  ClassBlock,
+  Contact,
+  DayType,
+  Energy,
+  Job,
+  Lead,
+  LogEntry,
+  Mission,
+  Moment,
+  Problem,
+  Settings,
+  Size,
+  TargetKey,
+} from './types.ts'
 import { stableId } from './ids.ts'
 import { addDays, weekdayOf } from './time.ts'
 import { classesOn, dayType, live, racketDates, semesterActive } from './schedule.ts'
 import { cellStates, neediestCells } from './charge.ts'
 import { nextRoadmapProblem, patternName, reviewsDue } from './prep.ts'
+import { courseShort, dailyPicks, dueIn, ROLE_LABEL, upcomingAssignments } from './sources.ts'
 
 export interface PlanContext {
   reviews: { title: string }[]
   nextProblem: { title: string; pattern: string } | null
   followUps: { name: string; company: string }[]
-  nextContact: { name: string; company: string } | null
+  nextContact: { name: string; company: string; detail?: string } | null
   nextJob: { company: string; title: string } | null
+  nextAssignment: { title: string; course: string; due: string } | null
 }
 
 export interface PlanInput {
@@ -31,7 +49,17 @@ export interface PlanInput {
 }
 
 /** Pull the planner's context out of synced rows (shared by app and server). */
-export function planContext(input: { date: string; problems: Problem[]; contacts: Contact[]; jobs: Job[] }): PlanContext {
+export function planContext(input: {
+  date: string
+  problems: Problem[]
+  contacts: Contact[]
+  jobs: Job[]
+  leads?: Lead[]
+  assignments?: Assignment[]
+  targets?: string[]
+  classes?: ClassBlock[]
+  now?: Date
+}): PlanContext {
   const contacts = live(input.contacts)
   const byAge = <T extends { created_at?: string }>(a: T, b: T) => (a.created_at ?? '').localeCompare(b.created_at ?? '')
   const next = nextRoadmapProblem(input.problems)
@@ -39,14 +67,43 @@ export function planContext(input: { date: string; problems: Problem[]; contacts
     .filter((j) => j.status === 'saved')
     .sort((a, b) => Number(b.sponsors === 'yes') - Number(a.sponsors === 'yes') || byAge(a, b))[0]
   const contact = contacts.filter((c) => c.status === 'to_contact').sort(byAge)[0]
+  // Nobody queued in the pipeline? Suggest today's best lead instead.
+  const [pick] = contact
+    ? []
+    : dailyPicks(
+        input.leads ?? [],
+        {
+          targets: input.targets ?? [],
+          jobCompanies: new Set(live(input.jobs).map((j) => j.company.toLowerCase())),
+        },
+        input.date,
+        1,
+      )
+  const now = input.now ?? new Date()
+  const [assignment] = upcomingAssignments(input.assignments ?? [], now, 7)
   return {
     reviews: reviewsDue(input.problems, input.date).map((p) => ({ title: p.title })),
     nextProblem: next ? { title: next.title, pattern: patternName(next.pattern) } : null,
     followUps: contacts
       .filter((c) => c.status === 'messaged' && c.follow_up_on && c.follow_up_on <= input.date)
       .map((c) => ({ name: c.name, company: c.company })),
-    nextContact: contact ? { name: contact.name, company: contact.company } : null,
+    nextContact: contact
+      ? { name: contact.name, company: contact.company, detail: contact.role || undefined }
+      : pick
+        ? {
+            name: pick.name,
+            company: pick.company,
+            detail: `${ROLE_LABEL[pick.role_kind]}${pick.mutuals ? ` · ${pick.mutuals} mutual${pick.mutuals === 1 ? '' : 's'}` : ''}`,
+          }
+        : null,
     nextJob: job ? { company: job.company, title: job.title } : null,
+    nextAssignment: assignment
+      ? {
+          title: assignment.title,
+          course: courseShort(assignment.course, input.classes ?? []),
+          due: dueIn(assignment.due_at!, now),
+        }
+      : null,
   }
 }
 
@@ -87,6 +144,7 @@ export function planDay(input: PlanInput): Mission[] {
     followUps: [],
     nextContact: null,
     nextJob: null,
+    nextAssignment: null,
     ...input.context,
   }
   const type: DayType = dayType(date, settings, racketDates(input.logs))
@@ -138,6 +196,7 @@ export function planDay(input: PlanInput): Mission[] {
     size: low ? 'S' : 'M',
     moment: huntMoment,
     target: 'referral',
+    note: ctx.nextContact?.detail,
     cell: 'hunt',
     base: 12,
   })
@@ -203,17 +262,32 @@ export function planDay(input: PlanInput): Mission[] {
     })
   }
 
-  // ── School
-  if (semesterActive(date, settings)) {
+  // ── School — name the most urgent assignment when the checker has one
+  const due = ctx.nextAssignment
+  const dueNote = due ? `${due.course ? `${due.course} · ` : ''}due ${due.due}` : undefined
+  if (semesterActive(date, settings) || due) {
     if (classDay) {
-      add({ key: 'homework', title: 'Homework chunk — whatever is due next', area: 'class', size: 'M', moment: 'night', base: 70 })
-    } else if (weekdayOf(date) !== 'sun' || type !== 'sport') {
+      add({
+        key: 'homework',
+        title: due ? `Homework: ${due.title}` : 'Homework chunk — whatever is due next',
+        area: 'class',
+        size: 'M',
+        moment: 'night',
+        note: dueNote,
+        base: 70,
+      })
+    } else if (weekdayOf(date) !== 'sun' || type !== 'sport' || due) {
       add({
         key: 'coursework',
-        title: low ? 'Coursework — just the next small piece' : 'Coursework block — Graphics, Linux, or the project',
+        title: due
+          ? `${low ? 'Chip away at' : 'Work on'} ${due.title}`
+          : low
+            ? 'Coursework — just the next small piece'
+            : 'Coursework block — Graphics, Linux, or the project',
         area: 'class',
         size: low ? 'M' : 'L',
         moment: 'out',
+        note: dueNote,
         base: 70,
       })
     }
