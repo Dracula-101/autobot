@@ -1,4 +1,5 @@
 import type { DayKey, TaskDef } from '../types'
+import { lecturesForDay, lecturePhase, lectureTaskId, formatClock, denverMinutes } from '../lib/schedule'
 
 /**
  * Stable task IDs for Mon–Sun lock-in checklist.
@@ -493,14 +494,41 @@ export const TASKS: TaskDef[] = [
 export function tasksForDay(
   day: DayKey,
   sportDay: 'mon' | 'sun',
+  opts?: { now?: Date; mode?: 'full' | 'active' },
 ): TaskDef[] {
   const isPartnerDay = day === sportDay
+  const mode = opts?.mode ?? 'active'
+  const now = opts?.now
+  const nowMin = now ? denverMinutes(now) : null
+
   return TASKS.filter((t) => {
     if (t.day !== day) return false
-    if (!t.variant || t.variant === 'default') return true
-    if (t.variant === 'partner') return isPartnerDay
-    if (t.variant === 'solo') return !isPartnerDay
+    if (!t.variant || t.variant === 'default') {
+      // ok
+    } else if (t.variant === 'partner') {
+      if (!isPartnerDay) return false
+    } else if (t.variant === 'solo') {
+      if (isPartnerDay) return false
+    }
+
+    // Lecture tasks: hide after class ends (attendance handled separately)
+    if (nowMin != null && mode === 'active' && t.category === 'class') {
+      const lec = lecturesForDay(day).find((l) => lectureTaskId(day, l.id) === t.id)
+      if (lec && lecturePhase(lec, nowMin) === 'ended') return false
+    }
     return true
+  }).map((t) => {
+    if (nowMin == null || t.category !== 'class') return t
+    const lec = lecturesForDay(day).find((l) => lectureTaskId(day, l.id) === t.id)
+    if (!lec) return t
+    const phase = lecturePhase(lec, nowMin)
+    if (phase === 'upcoming') {
+      return { ...t, label: `${lec.course} · ${formatClock(lec.startMin)} · ${lec.room}` }
+    }
+    if (phase === 'live') {
+      return { ...t, label: `${lec.course} · live until ${formatClock(lec.endMin)}` }
+    }
+    return t
   })
 }
 

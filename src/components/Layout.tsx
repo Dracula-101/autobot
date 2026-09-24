@@ -17,7 +17,7 @@ export function Layout() {
   const mood = isCheckedIn(today) ? 'happy' : 'idle'
 
   return (
-    <div className="mx-auto flex min-h-dvh max-w-lg flex-col px-4 pb-40 pt-5">
+    <div className="mx-auto flex min-h-dvh max-w-3xl flex-col px-4 pb-40 pt-5">
       <header className="mb-5 flex items-start justify-between gap-3">
         <div className="flex items-center gap-3">
           <div className="rounded-2xl border border-ink-border/60 bg-ink-card p-1.5 shadow-soft">
@@ -46,7 +46,7 @@ export function Layout() {
       <CheckInCTA />
 
       <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-ink-border/50 bg-ink/90 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-lg justify-around px-2 pb-[max(0.45rem,env(safe-area-inset-bottom))] pt-1.5">
+        <div className="mx-auto flex max-w-3xl justify-around px-2 pb-[max(0.45rem,env(safe-area-inset-bottom))] pt-1.5">
           {nav.map(({ to, label, icon: Icon, end }) => (
             <NavLink
               key={to}

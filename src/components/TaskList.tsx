@@ -9,8 +9,15 @@ export function TaskList() {
   const { selectedDate, sportDay, isTaskDone, toggleTask, today } = useApp()
   const dayKey = dayKeyOf(selectedDate)
   const tasks = useMemo(
-    () => tasksForDay(dayKey, sportDay),
-    [dayKey, sportDay],
+    () =>
+      tasksForDay(
+        dayKey,
+        sportDay,
+        selectedDate === today
+          ? { now: new Date(), mode: 'active' }
+          : { mode: 'full' },
+      ),
+    [dayKey, sportDay, selectedDate, today],
   )
   const meta = DAY_META[dayKey]
   const doneCount = tasks.filter((t) => isTaskDone(selectedDate, t.id)).length
