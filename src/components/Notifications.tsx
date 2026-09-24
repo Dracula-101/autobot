@@ -4,6 +4,7 @@ import {
   formatClock,
   upcomingReminders,
   logicalDay,
+  type Assignment,
   type Checkin,
   type Contact,
   type LogEntry,
@@ -23,6 +24,7 @@ const PREFS: { key: Exclude<keyof NotifyPrefs, 'classLead'>; label: string; hint
   { key: 'classes', label: 'Classes', hint: 'Before your first lecture on class days' },
   { key: 'bedtime', label: 'Bedtime', hint: '15 minutes before lights out' },
   { key: 'followups', label: 'Referral follow-ups', hint: 'When someone hasn’t replied in 5 days' },
+  { key: 'deadlines', label: 'Assignment deadlines', hint: 'The day before it’s due, and 3 hours before' },
   { key: 'nudges', label: 'Firm-friend nudges', hint: 'Only when the day stalls — max twice a day' },
   { key: 'weekly', label: 'Sunday week wrap', hint: 'Scoreboard and review' },
 ]
@@ -38,6 +40,7 @@ export function NotificationSettings() {
   const missions = useRows<Mission>('missions')
   const contacts = useRows<Contact>('contacts')
   const logs = useRows<LogEntry>('logs')
+  const assignments = useRows<Assignment>('assignments')
 
   useEffect(() => {
     void currentSubscription().then((s) => setEnabled(Boolean(s) && Notification.permission === 'granted'))
@@ -55,9 +58,10 @@ export function NotificationSettings() {
       missions,
       contacts,
       logs,
+      assignments,
       sentKeys: new Set(),
     })
-  }, [settings, routines, routineLogs, checkins, missions, contacts, logs])
+  }, [settings, routines, routineLogs, checkins, missions, contacts, logs, assignments])
 
   const needsInstall = isIOS() && !isStandalone()
 

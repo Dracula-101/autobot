@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Copy, ExternalLink, Mail, Sparkles, Trash2 } from 'lucide-react'
-import { formatDate, logicalDay, relativeDay, type Contact, type ContactStatus, type Job, type JobStatus } from '@core/index.ts'
+import { formatDate, logicalDay, relativeDay, type Contact, type ContactStatus, type Job, type JobStatus, type Lead } from '@core/index.ts'
 import { useApp, useRows } from '../lib/app'
 import { useActions } from '../lib/useActions'
 import { api, type Draft } from '../lib/api'
@@ -40,19 +40,29 @@ function CompanyInput({ value, onChange, id }: { value: string; onChange: (v: st
   )
 }
 
-function DraftBox({ contact, followUp }: { contact: Contact; followUp: boolean }) {
+/** LinkedIn cuts connection notes off at 200 characters on free accounts. */
+const NOTE_LIMIT = 200
+
+export function DraftBox({ contact, lead, followUp = false }: { contact?: Contact; lead?: Lead; followUp?: boolean }) {
   const { cloud } = useApp()
   const toast = useToast()
   const [draft, setDraft] = useState<Draft | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const channel = contact.channel === 'linkedin' ? 'linkedin' : 'email'
+  const channel = !contact || contact.channel === 'linkedin' ? 'linkedin' : 'email'
+  // Someone clipped from LinkedIn isn't a connection yet: the first touch is a connection note.
+  const note = !contact && Boolean(lead)
+  const handle = contact?.handle ?? lead?.url ?? ''
 
   const generate = async () => {
     setBusy(true)
     setError(null)
     try {
-      const res = await api.draft({ contactId: contact.id, jobId: contact.job_id ?? undefined, channel, followUp })
+      const res = await api.draft(
+        contact
+          ? { contactId: contact.id, jobId: contact.job_id ?? undefined, channel, followUp }
+          : { leadId: lead?.id, channel: 'linkedin' },
+      )
       setDraft(res.draft)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Couldn’t draft that.')
@@ -67,7 +77,7 @@ function DraftBox({ contact, followUp }: { contact: Contact; followUp: boolean }
       <div className="space-y-2">
         <button type="button" className="btn-soft w-full" onClick={() => void generate()} disabled={busy}>
           <Sparkles className="h-4 w-4 text-violet" />
-          {busy ? 'Writing…' : followUp ? 'Draft a follow-up' : 'Draft the referral ask'}
+          {busy ? 'Writing…' : followUp ? 'Draft a follow-up' : note ? 'Draft a connection note' : 'Draft the referral ask'}
         </button>
         {error && <p className="text-[13px] font-bold text-rose">{error}</p>}
       </div>
@@ -75,9 +85,10 @@ function DraftBox({ contact, followUp }: { contact: Contact; followUp: boolean }
   }
   const text = channel === 'email' && draft.subject ? `Subject: ${draft.subject}\n\n${draft.body}` : draft.body
   const mailto =
-    channel === 'email' && contact.handle.includes('@')
-      ? `mailto:${contact.handle}?subject=${encodeURIComponent(draft.subject)}&body=${encodeURIComponent(draft.body)}`
+    channel === 'email' && handle.includes('@')
+      ? `mailto:${handle}?subject=${encodeURIComponent(draft.subject)}&body=${encodeURIComponent(draft.body)}`
       : null
+  const over = note && draft.body.length > NOTE_LIMIT
   return (
     <div className="space-y-2 rounded-2xl bg-violet/8 p-3">
       <p className="text-[12px] font-black uppercase tracking-[0.08em] text-violet">Autobot’s draft — edit freely</p>
@@ -86,11 +97,17 @@ function DraftBox({ contact, followUp }: { contact: Contact; followUp: boolean }
       )}
       <textarea
         className="field resize-none"
-        rows={8}
+        rows={note ? 4 : 8}
         value={draft.body}
         onChange={(e) => setDraft({ ...draft, body: e.target.value })}
         aria-label="Message"
       />
+      {note && (
+        <p className={`text-right text-[12px] font-bold ${over ? 'text-rose' : 'text-ink-3'}`}>
+          <span className="num">{draft.body.length}</span> / {NOTE_LIMIT}
+          {over ? ' — LinkedIn will cut this off, trim it' : ' · fits a connection note'}
+        </p>
+      )}
       <div className="flex flex-wrap gap-2">
         <button
           type="button"
@@ -107,8 +124,8 @@ function DraftBox({ contact, followUp }: { contact: Contact; followUp: boolean }
             <Mail className="h-4 w-4" /> Open email
           </a>
         )}
-        {channel === 'linkedin' && contact.handle.startsWith('http') && (
-          <a className="btn-soft btn-sm" href={contact.handle} target="_blank" rel="noreferrer">
+        {channel === 'linkedin' && handle.startsWith('http') && (
+          <a className="btn-soft btn-sm" href={handle} target="_blank" rel="noreferrer">
             <ExternalLink className="h-4 w-4" /> Open LinkedIn
           </a>
         )}

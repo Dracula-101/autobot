@@ -23,6 +23,7 @@ import { MeButton } from '../components/Shell'
 import { AddMission, MomentGroups } from '../components/Missions'
 import { BedtimeCard, ClassTimeline, NextUpCard, PerWeekChips, StackCard } from '../components/TodayCards'
 import { EnergyCard, PowerCells, WeekCells } from '../components/Cells'
+import { DueSoonCard } from '../components/School'
 import { useToast } from '../components/Toast'
 import { SectionTitle } from '../components/ui'
 
@@ -165,6 +166,7 @@ export function TodayPage() {
         />
         )}
         <PowerCells cells={t.cells} />
+        <DueSoonCard due={t.due} now={t.now} />
         {showNight && !lateDay && <StackCard stack="night" items={t.night} />}
         <PerWeekChips items={t.perWeek} />
         <ClassTimeline lectures={t.lectures} nowMins={t.nowMins} />

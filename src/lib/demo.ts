@@ -44,6 +44,66 @@ export function loadDemo(store: SyncStore) {
       { id: id('p3'), slug: 'valid-parentheses', title: 'Valid Parentheses', difficulty: 'Easy', pattern: 'stack', result: 'solved', attempts: 2, interval_days: 14, next_review: addDays(today, 9), last_solved_on: addDays(today, -5), notes: '' },
     ]),
   )
+  // Fake people and coursework — the real lists come from his other projects.
+  const lead = (key: string, name: string, headline: string, company: string, role_kind: string, extra: object = {}) => ({
+    id: id(`lead-${key}`),
+    source: 'linkedin',
+    source_id: key,
+    name,
+    url: 'https://www.linkedin.com/',
+    headline,
+    company,
+    company_raw: company,
+    role_kind,
+    location: 'Seattle, Washington, United States',
+    us: true,
+    mutuals: 0,
+    mutual_names: '',
+    clipped_at: new Date().toISOString(),
+    contact_id: null,
+    hidden: false,
+    ...extra,
+  })
+  store.upsert(
+    'leads',
+    rows([
+      lead('1', 'Jordan Blake', 'University Recruiter, Early Careers @ Amazon', 'Amazon', 'university', { mutuals: 3, mutual_names: 'Sam Ortiz, Lee Park' }),
+      lead('2', 'Riley Chen', 'Technical Recruiter | Hiring SDEs at AWS', 'Amazon', 'recruiter', { mutuals: 1, mutual_names: 'Sam Ortiz' }),
+      lead('3', 'Morgan Diaz', 'Software Development Manager at Amazon', 'Amazon', 'manager'),
+      lead('4', 'Casey Nguyen', 'New Grad Recruiting @ Tesla', 'Tesla', 'university', { location: 'Austin, Texas, United States' }),
+      lead('5', 'Taylor Brooks', 'Senior Software Engineer at Tesla', 'Tesla', 'engineer', { mutuals: 2, mutual_names: 'Lee Park, Ana Ruiz' }),
+      lead('6', 'Avery Singh', 'Talent Acquisition, OCI | Oracle', 'Oracle', 'recruiter', { location: 'Bengaluru, Karnataka, India', us: false }),
+      lead('7', 'Quinn Foster', 'Engineering Manager, Oracle Cloud Infrastructure', 'Oracle', 'manager', { location: 'Denver, Colorado, United States' }),
+    ]),
+  )
+  const at = (days: number, hour = 23, minute = 59) => {
+    const d = new Date()
+    d.setDate(d.getDate() + days)
+    d.setHours(hour, minute, 0, 0)
+    return d.toISOString()
+  }
+  const task = (key: string, title: string, course: string, due_at: string, extra: object = {}) => ({
+    id: id(`asg-${key}`),
+    source: 'checker',
+    source_id: key,
+    title,
+    course,
+    due_at,
+    url: 'https://canvas.colorado.edu/',
+    source_status: '',
+    checked_at: new Date().toISOString(),
+    done_at: null,
+    ...extra,
+  })
+  store.upsert(
+    'assignments',
+    rows([
+      task('1', 'HW3: Shading and Lighting', 'CSCI 5229-001: Computer Graphics', at(1)),
+      task('2', 'Lab 4: systemd services', 'CSCI 5113: Linux System Administration', at(3, 12, 30)),
+      task('3', 'Sprint 2 demo', 'CSCI 5040: Professional Masters Project', at(9, 17, 0)),
+      task('4', 'Lab 3: Users and permissions', 'CSCI 5113: Linux System Administration', at(-3, 12, 30), { source_status: 'submitted' }),
+    ]),
+  )
   store.upsert(
     'logs',
     rows([

@@ -27,8 +27,10 @@ import {
   type Contact,
   type ContactStatus,
   type Energy,
+  type Assignment,
   type Job,
   type JobStatus,
+  type Lead,
   type LogKind,
   type Memory,
   type MemoryCategory,
@@ -154,6 +156,7 @@ export const TOOL_DECLARATIONS: FunctionDeclaration[] = [
         handle: { type: 'string', description: 'Email address or LinkedIn URL' },
         status: oneOf(CONTACT_STATUSES),
         followed_up: { type: 'boolean', description: 'He just followed up with them' },
+        lead: { type: 'string', description: 'Ref of a lead from <leads> this person came from (fills in their details)' },
         follow_up_days: int,
         notes: str,
       },
@@ -191,6 +194,11 @@ export const TOOL_DECLARATIONS: FunctionDeclaration[] = [
     description:
       'Change a setting. Keys: sleep.bed, sleep.wake (HH:MM), voice (firm|gentle|strict), notify.routines|classes|bedtime|followups|nudges|weekly (true/false), notify.classLead (minutes).',
     parameters: { type: 'object', properties: { key: str, value: str }, required: ['key', 'value'] },
+  },
+  {
+    name: 'finish_assignment',
+    description: 'Mark an assignment from <school> done (or not done) when he says he submitted or finished it.',
+    parameters: { type: 'object', properties: { ref: str, done: { type: 'boolean' } }, required: ['ref'] },
   },
   {
     name: 'set_energy',
@@ -247,6 +255,8 @@ export class Toolbox {
           return await this.updateSettings(args)
         case 'set_energy':
           return await this.setEnergy(args)
+        case 'finish_assignment':
+          return await this.finishAssignment(args)
         default:
           return { ok: false, error: `Unknown tool ${call.name}` }
       }
@@ -522,22 +532,26 @@ export class Toolbox {
   // ── hunt
 
   private async saveContact(a: Args): Promise<Result> {
-    const name = s(a.name, 120)
-    const company = s(a.company, 120)
+    const lead = this.resolve<Lead>(this.state.leads, a.lead)
+    const name = s(a.name, 120) || lead?.name || ''
+    const company = s(a.company, 120) || lead?.company || ''
+    const linked = lead?.contact_id ? live(this.state.contacts).find((c) => c.id === lead.contact_id) : undefined
     const existing =
       this.resolve(this.state.contacts, a.ref) ??
+      linked ??
       live(this.state.contacts).find(
         (c) => c.name.toLowerCase() === name.toLowerCase() && (!company || c.company.toLowerCase() === company.toLowerCase()),
       )
     if (!existing && !name) return { ok: false, error: 'name is required' }
     const status = pickEnum(a.status, CONTACT_STATUSES, existing?.status ?? 'to_contact')
     const row: Contact = {
-      id: existing?.id ?? crypto.randomUUID(),
+      // Same id the app uses for a lead, so both sides can't create the person twice.
+      id: existing?.id ?? (lead ? stableId(`${this.uid}:lead-contact:${lead.id}`) : crypto.randomUUID()),
       name: name || existing!.name,
       company: company || existing?.company || '',
-      role: s(a.role, 120) || existing?.role || '',
-      channel: pickEnum(a.channel, ['email', 'linkedin', 'other'] as Contact['channel'][], existing?.channel ?? 'email'),
-      handle: s(a.handle, 300) || existing?.handle || '',
+      role: s(a.role, 120) || existing?.role || lead?.headline.slice(0, 120) || '',
+      channel: pickEnum(a.channel, ['email', 'linkedin', 'other'] as Contact['channel'][], existing?.channel ?? (lead ? 'linkedin' : 'email')),
+      handle: s(a.handle, 300) || existing?.handle || lead?.url || '',
       status,
       job_id: existing?.job_id ?? null,
       last_contact_at: existing?.last_contact_at ?? null,
@@ -555,6 +569,11 @@ export class Toolbox {
     await this.write('contacts', row as unknown as Record<string, unknown>)
     if (existing) Object.assign(existing, row)
     else this.state.contacts.push(row)
+    if (lead && !lead.contact_id) {
+      const { error } = await this.db.from('leads').update({ contact_id: row.id }).eq('id', lead.id)
+      if (error) throw new Error(error.message)
+      lead.contact_id = row.id
+    }
     if (becameMessaged) await this.log('referral', 1, row.id)
     if (followedUp) await this.log('followup', 1, row.id)
     const statusLabel: Record<ContactStatus, string> = {
@@ -746,5 +765,23 @@ export class Toolbox {
       { level, added: diff.add.length, removed: diff.remove.length },
     )
     return { ok: true, added: diff.add.map((m) => m.title), set_aside: diff.remove.length }
+  }
+
+  // ── school
+
+  private async finishAssignment(a: Args): Promise<Result> {
+    const item = this.resolve<Assignment>(this.state.assignments, a.ref)
+    if (!item) return { ok: false, error: 'assignment not found' }
+    const done = a.done !== false
+    const done_at = done ? new Date().toISOString() : null
+    const { error } = await this.db.from('assignments').update({ done_at }).eq('id', item.id)
+    if (error) throw new Error(error.message)
+    item.done_at = done_at
+    await this.record(
+      { type: 'class.assignment', label: `${done ? 'Finished' : 'Reopened'}: ${clip(item.title)}`, table: 'assignments', id: item.id },
+      'assignment.done',
+      { done },
+    )
+    return { ok: true }
   }
 }

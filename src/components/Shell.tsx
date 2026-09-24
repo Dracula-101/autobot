@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
-import { Briefcase, Code2, HeartPulse, MessageCircle, Moon, Sun, Sunrise, Sunset, type LucideIcon } from 'lucide-react'
+import { Briefcase, Code2, GraduationCap, HeartPulse, MessageCircle, Moon, Sun, Sunrise, Sunset, type LucideIcon } from 'lucide-react'
 import type { Phase } from '@core/index.ts'
 import { useApp, useRows, useSyncStatus } from '../lib/app'
 import { usePhaseSync } from '../lib/phase'
@@ -20,6 +20,8 @@ function navItems(phase: Phase) {
     { to: '/chat', label: 'Chat', icon: MessageCircle },
     { to: '/prep', label: 'Prep', icon: Code2 },
     { to: '/body', label: 'Body', icon: HeartPulse },
+    // Sidebar only; on phones School lives in Today's "Due soon" card and You → Sources.
+    { to: '/school', label: 'School', icon: GraduationCap, desktop: true },
   ]
 }
 
@@ -127,7 +129,7 @@ function Sidebar({ phase }: { phase: Phase }) {
 }
 
 function TabBar({ phase }: { phase: Phase }) {
-  const items = navItems(phase)
+  const items = navItems(phase).filter((i) => !i.desktop)
   const location = useLocation()
   const onChat = location.pathname.startsWith('/chat')
   return (

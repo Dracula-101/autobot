@@ -12,13 +12,16 @@ import {
   scheduleReview,
   slugify,
   stableId,
+  ROLE_LABEL,
   type Activity,
+  type Assignment,
   type Checkin,
   type Contact,
   type ContactStatus,
   type Energy,
   type Job,
   type JobStatus,
+  type Lead,
   type LogEntry,
   type LogKind,
   type Memory,
@@ -97,6 +100,11 @@ export function createActions(store: SyncStore, settings: Settings) {
         problems: store.rows<Problem>('problems'),
         contacts: store.rows<Contact>('contacts'),
         jobs: store.rows<Job>('jobs'),
+        leads: store.rows<Lead>('leads'),
+        assignments: store.rows<Assignment>('assignments'),
+        targets: settings.targetCompanies,
+        classes: settings.classes,
+        now: new Date(),
       }),
     })
 
@@ -391,9 +399,75 @@ export function createActions(store: SyncStore, settings: Settings) {
     },
 
     deleteContact(c: Contact): Undo {
+      // A person who came from LinkedIn Targets goes back to the leads list.
+      const linked = store.rows<Lead>('leads').filter((l) => l.contact_id === c.id).map((l) => l.id)
       const undo = snapshot(store, 'contacts', [c.id])
+      const undoLeads = snapshot(store, 'leads', linked)
       store.remove('contacts', c.id)
+      for (const id of linked) store.patch<Lead>('leads', id, { contact_id: null })
       log(`Removed ${c.name}`, 'contact.delete', { table: 'contacts', id: c.id })
+      return () => {
+        undo()
+        undoLeads()
+      }
+    },
+
+    /** Move a clipped LinkedIn profile into the pipeline (optionally already messaged). */
+    leadToContact(lead: Lead, status: 'to_contact' | 'messaged' = 'to_contact'): { contact: Contact; undo: Undo } {
+      const existing = lead.contact_id ? store.get<Contact>('contacts', lead.contact_id) : undefined
+      if (existing && !existing.deleted_at) {
+        return { contact: existing, undo: status === 'messaged' ? actions.setContactStatus(existing, 'messaged') : () => {} }
+      }
+      const id = stableId(`${store.userId}:lead-contact:${lead.id}`)
+      const undoContact = snapshot(store, 'contacts', [id])
+      const undoLead = snapshot(store, 'leads', [lead.id])
+      const mutuals = lead.mutuals ? `Mutuals: ${lead.mutual_names || lead.mutuals}` : ''
+      const contact: Contact = {
+        id,
+        name: lead.name,
+        company: lead.company,
+        role: clip(lead.headline, 120),
+        channel: 'linkedin',
+        handle: lead.url,
+        status,
+        job_id: null,
+        last_contact_at: status === 'messaged' ? nowIso() : null,
+        follow_up_on: status === 'messaged' ? addDays(today(), 5) : null,
+        notes: [`${ROLE_LABEL[lead.role_kind]} · ${lead.location}`, mutuals].filter(Boolean).join('\n'),
+        deleted_at: null,
+      }
+      store.upsert('contacts', contact as unknown as SyncRow)
+      store.patch<Lead>('leads', lead.id, { contact_id: id })
+      const logId = status === 'messaged' ? addLog({ kind: 'referral', amount: 1, ref_id: id, note: null }) : null
+      log(
+        `${status === 'messaged' ? 'Messaged' : 'Added to pipeline'}: ${lead.name}${lead.company ? ` (${lead.company})` : ''}`,
+        status === 'messaged' ? 'contact.status' : 'contact.save',
+        { table: 'contacts', id },
+        { from: 'lead' },
+      )
+      return {
+        contact,
+        undo: () => {
+          undoContact()
+          undoLead()
+          if (logId) store.remove('logs', logId)
+        },
+      }
+    },
+
+    hideLead(lead: Lead, hidden = true): Undo {
+      const undo = snapshot(store, 'leads', [lead.id])
+      store.patch<Lead>('leads', lead.id, { hidden })
+      log(`${hidden ? 'Skipped' : 'Restored'} lead: ${lead.name}`, 'lead.hide', { table: 'leads', id: lead.id })
+      return undo
+    },
+
+    // ── school
+
+    setAssignmentDone(a: Assignment, done: boolean): Undo {
+      const undo = snapshot(store, 'assignments', [a.id])
+      store.patch<Assignment>('assignments', a.id, { done_at: done ? nowIso() : null })
+      log(`${done ? 'Finished' : 'Reopened'}: ${clip(a.title)}`, 'assignment.done', { table: 'assignments', id: a.id }, { done })
       return undo
     },
 

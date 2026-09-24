@@ -3,6 +3,7 @@ import {
   addDays,
   cellStates,
   classesOn,
+  courseShort,
   currentMoment,
   dayMinutes,
   dayType,
@@ -20,6 +21,8 @@ import {
   sortMissions,
   speak,
   stackItems,
+  upcomingAssignments,
+  type Assignment,
   type Cell,
   type CellState,
   type ChatMessage,
@@ -70,6 +73,8 @@ export interface TodayState {
   brief: ChatMessage | null
   reviews: Problem[]
   weather: Weather | null
+  /** Open assignments due within a week (overdue by < 1 day included), soonest first */
+  due: Assignment[]
 }
 
 export function useToday(skip: string[] = []): TodayState {
@@ -83,6 +88,7 @@ export function useToday(skip: string[] = []): TodayState {
   const checkins = useRows<Checkin>('day_checkins')
   const problems = useRows<Problem>('problems')
   const chat = useRows<ChatMessage>('chat_messages')
+  const assignments = useRows<Assignment>('assignments')
 
   const date = logicalDay(now, settings.rolloverHour)
   const nowMins = dayMinutes(now, settings.rolloverHour)
@@ -121,6 +127,8 @@ export function useToday(skip: string[] = []): TodayState {
     const cells = cellStates(logs, date, since)
     const energy = checkin?.energy ?? null
     const pending = (items: StackItem[]) => items.filter((i) => !i.done).map((i) => i.routine.name.toLowerCase())
+    const due = upcomingAssignments(assignments, now, 7)
+    const soonest = due.find((a) => new Date(a.due_at!).getTime() > now.getTime())
     const speech = speak({
       name,
       settings,
@@ -139,6 +147,13 @@ export function useToday(skip: string[] = []): TodayState {
       weather,
       energy,
       cells,
+      dueSoon: soonest
+        ? {
+            title: soonest.title,
+            course: courseShort(soonest.course, settings.classes),
+            minutesLeft: Math.round((new Date(soonest.due_at!).getTime() - now.getTime()) / 60_000),
+          }
+        : null,
     })
     const brief =
       live(chat).find((m) => (m.meta as { kind?: string; day?: string })?.kind === 'brief' && (m.meta as { day?: string }).day === date) ??
@@ -166,6 +181,7 @@ export function useToday(skip: string[] = []): TodayState {
       brief,
       reviews: reviewsDue(problems, date),
       weather,
+      due,
     }
-  }, [now, date, nowMins, settings, name, missionsAll, logs, routines, routineLogs, checkins, problems, chat, weather, skipKey])
+  }, [now, date, nowMins, settings, name, missionsAll, logs, routines, routineLogs, checkins, problems, chat, weather, skipKey, assignments])
 }

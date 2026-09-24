@@ -6,10 +6,12 @@ import {
   logicalDay,
   weekStart,
   withDefaults,
+  type Assignment,
   type ChatMessage,
   type Checkin,
   type Contact,
   type Job,
+  type Lead,
   type LogEntry,
   type Memory,
   type Mission,
@@ -34,6 +36,8 @@ export interface UserState {
   contacts: Contact[]
   jobs: Job[]
   problems: Problem[]
+  leads: Lead[]
+  assignments: Assignment[]
   checkin: Checkin | null
   /** Oldest first */
   history: ChatMessage[]
@@ -59,7 +63,7 @@ export async function loadState(
   const logsSince = addDays(today, -28)
   const mine = (table: string) => db.from(table).select('*').eq('user_id', userId).is('deleted_at', null)
 
-  const [memories, missions, routines, routineLogs, logs, contacts, jobs, problems, checkin, history] =
+  const [memories, missions, routines, routineLogs, logs, contacts, jobs, problems, checkin, history, leads, assignments] =
     await Promise.all([
       mine('memories').order('pinned', { ascending: false }).order('updated_at', { ascending: false }).limit(200),
       mine('missions').gte('day', today).lte('day', addDays(today, 1)),
@@ -73,6 +77,8 @@ export async function loadState(
       opts.history
         ? mine('chat_messages').order('created_at', { ascending: false }).limit(opts.history)
         : Promise.resolve({ data: [], error: null }),
+      mine('leads').limit(3000),
+      mine('assignments').gte('due_at', addDays(today, -2)).order('due_at', { ascending: true }).limit(200),
     ])
 
   return {
@@ -89,6 +95,8 @@ export async function loadState(
     contacts: rows<Contact>(contacts, 'contacts'),
     jobs: rows<Job>(jobs, 'jobs'),
     problems: rows<Problem>(problems, 'problems'),
+    leads: rows<Lead>(leads, 'leads'),
+    assignments: rows<Assignment>(assignments, 'assignments'),
     checkin: rows<Checkin>(checkin, 'day_checkins')[0] ?? null,
     history: rows<ChatMessage>(history, 'chat_messages').reverse(),
   }

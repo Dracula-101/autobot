@@ -9,7 +9,7 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:functions": "deno test --no-check --allow-env=COLUMNS_JSON --allow-read tests/tools.deno.test.ts",
-    "check:functions": "deno check supabase/functions/autobot-chat/index.ts supabase/functions/autobot-notify/index.ts"
+    "check:functions": "deno check supabase/functions/autobot-chat/index.ts supabase/functions/autobot-notify/index.ts supabase/functions/autobot-import/index.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.49.8",

@@ -50,6 +50,7 @@ export const DEFAULT_SETTINGS: Settings = {
     classes: true,
     bedtime: true,
     followups: true,
+    deadlines: true,
     nudges: true,
     weekly: true,
     classLead: 75,

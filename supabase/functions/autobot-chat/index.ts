@@ -7,13 +7,13 @@ import { callsOf, generate, GeminiError, textOf, type GeminiContent, type Gemini
 import { loadState, type UserState } from '../_shared/state.ts'
 import { systemPrompt, type ChatMode } from '../_shared/prompt.ts'
 import { Toolbox, TOOL_DECLARATIONS } from '../_shared/tools.ts'
-import { formatDate, live, stableId, wallClock, type ChatMessage } from '../_shared/core/index.ts'
+import { formatDate, live, ROLE_ASK, ROLE_LABEL, stableId, wallClock, type ChatMessage } from '../_shared/core/index.ts'
 
 interface Body {
   mode?: ChatMode | 'draft'
   message?: string
   id?: string
-  draft?: { contactId?: string; jobId?: string; channel?: 'email' | 'linkedin'; followUp?: boolean; notes?: string }
+  draft?: { contactId?: string; leadId?: string; jobId?: string; channel?: 'email' | 'linkedin'; followUp?: boolean; notes?: string }
 }
 
 const MODES: (ChatMode | 'draft')[] = ['chat', 'interview', 'teach', 'brief', 'draft']
@@ -194,17 +194,31 @@ async function draft(
 ): Promise<Response> {
   if (!apiKey) return json({ error: 'The Gemini key isn’t set on the server yet.' }, 503)
   const contact = d.contactId ? state.contacts.find((c) => c.id === d.contactId) : undefined
+  const lead = d.leadId ? state.leads.find((l) => l.id === d.leadId) : undefined
   const jobId = d.jobId ?? contact?.job_id ?? undefined
   const job = jobId ? state.jobs.find((j) => j.id === jobId) : undefined
-  const channel = d.channel ?? contact?.channel ?? 'email'
+  const channel = d.channel ?? contact?.channel ?? (lead ? 'linkedin' : 'email')
   const who = contact
     ? `${contact.name}${contact.role ? ` (${contact.role})` : ''} at ${contact.company || 'their company'}`
-    : 'an engineer at the company'
+    : lead
+      ? `${lead.name} (${ROLE_LABEL[lead.role_kind]}: "${lead.headline.slice(0, 100)}") at ${lead.company || 'their company'}`
+      : 'an engineer at the company'
+  // A clipped lead isn't a connection yet, so the first touch is a connection note.
+  const note = Boolean(lead) && !contact && !d.followUp
+  const angle = lead
+    ? `\nAngle: ${ROLE_ASK[lead.role_kind]}${lead.mutuals ? ` You share mutual connections (${lead.mutual_names || lead.mutuals}) — mention one only if it reads naturally.` : ''}`
+    : ''
   const ask = d.followUp
     ? `a short, friendly follow-up to ${who}, who hasn't replied to his referral request yet`
     : `a referral request to ${who}`
   const prompt = `Draft ${ask}${job ? ` for "${job.title || 'a role'}" at ${job.company}${job.url ? ` (${job.url})` : ''}` : ''}.
-Channel: ${channel === 'linkedin' ? 'LinkedIn message — no subject needed, under 90 words' : 'email — include a subject line'}.
+Channel: ${
+    note
+      ? 'LinkedIn connection note — no subject, and the body MUST be under 200 characters (LinkedIn cuts it off)'
+      : channel === 'linkedin'
+        ? 'LinkedIn message — no subject needed, under 90 words'
+        : 'email — include a subject line'
+  }.${angle}
 Write as Pratik. Use relevant facts from <memories> (MS CS at CU Boulder, graduating soon, his strongest projects/skills if known). Specific, warm, confident, one clear ask that's easy to say yes to, no groveling, no placeholders except [link to resume] if needed.${d.notes ? `\nExtra context: ${d.notes.slice(0, 400)}` : ''}`
   try {
     const content = await generate({

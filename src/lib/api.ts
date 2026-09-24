@@ -10,7 +10,7 @@ export class ApiError extends Error {
   }
 }
 
-async function invoke<T>(fn: 'autobot-chat' | 'autobot-notify', body: Record<string, unknown>): Promise<T> {
+async function invoke<T>(fn: 'autobot-chat' | 'autobot-notify' | 'autobot-import', body: Record<string, unknown>): Promise<T> {
   if (!supabase) throw new ApiError('Autobot’s brain lives in the cloud — sign in to talk to it.', 0)
   const { data, error } = await supabase.functions.invoke(fn, { body })
   if (error) {
@@ -36,12 +36,22 @@ export interface Draft {
   body: string
 }
 
+export interface SourceResult {
+  source: 'linkedin' | 'checker'
+  ok: boolean
+  rows: number
+  written: number
+  removed: number
+  message: string
+}
+
 export const api = {
   chat: (input: { id: string; message: string; mode: ChatMode }) =>
     invoke<{ reply: ChatMessage }>('autobot-chat', input),
   brief: () => invoke<{ reply: ChatMessage | null }>('autobot-chat', { mode: 'brief' }),
-  draft: (draft: { contactId?: string; jobId?: string; channel?: 'email' | 'linkedin'; followUp?: boolean; notes?: string }) =>
+  draft: (draft: { contactId?: string; leadId?: string; jobId?: string; channel?: 'email' | 'linkedin'; followUp?: boolean; notes?: string }) =>
     invoke<{ draft: Draft }>('autobot-chat', { mode: 'draft', draft }),
   vapidKey: () => invoke<{ publicKey: string }>('autobot-notify', { action: 'vapid' }),
+  importSources: () => invoke<{ results: SourceResult[] }>('autobot-import', {}),
   testPush: () => invoke<{ devices: number; delivered: number; errors: string[] }>('autobot-notify', { action: 'test' }),
 }

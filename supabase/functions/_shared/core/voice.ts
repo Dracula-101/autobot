@@ -82,6 +82,8 @@ export interface SpeechContext {
   /** Today's battery check-in (null = not asked yet) */
   energy?: Energy | null
   cells?: Record<Cell, CellState>
+  /** Soonest open assignment and how long until it's due */
+  dueSoon?: { title: string; course: string; minutesLeft: number } | null
 }
 
 export interface Speech {
@@ -148,6 +150,15 @@ export function speak(ctx: SpeechContext): Speech {
         mood: 'focused',
         text: `${c.short} at ${formatClock(start)} in ${c.room}. Leave by ${formatClock(start - 25)}.${stack}`,
       }
+    }
+  }
+
+  const due = ctx.dueSoon
+  if (due && due.minutesLeft > 0 && due.minutesLeft <= 6 * 60) {
+    const left = due.minutesLeft < 60 ? `${due.minutesLeft} min` : formatDuration(due.minutesLeft)
+    return {
+      mood: due.minutesLeft <= 90 ? 'worried' : 'focused',
+      text: `${due.title}${due.course ? ` (${due.course})` : ''} is due in ${left}. That comes first — everything else can wait.`,
     }
   }
 

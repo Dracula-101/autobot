@@ -1,5 +1,12 @@
 import type { UserState } from './state.ts'
 import {
+  assignmentDone,
+  courseShort,
+  dailyPicks,
+  dueIn,
+  isOpenLead,
+  ROLE_LABEL,
+  upcomingAssignments,
   CELL_LABEL,
   CELLS,
   STATUS_LABEL,
@@ -137,6 +144,35 @@ export function buildContext(st: UserState): string {
   }
   if (!contacts.length && !jobs.length) out.push('(no contacts or jobs saved yet)')
   out.push('</hunt>')
+
+  const leads = live(st.leads)
+  if (leads.length) {
+    const open = leads.filter(isOpenLead)
+    const tally = (key: (l: (typeof leads)[number]) => string) =>
+      Object.entries(open.reduce<Record<string, number>>((m, l) => ((m[key(l)] = (m[key(l)] ?? 0) + 1), m), {}))
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 5)
+        .map(([k, n]) => `${k} ${n}`)
+        .join(', ')
+    const picks = dailyPicks(leads, { targets: s.targetCompanies, jobCompanies: new Set(jobs.map((j) => j.company.toLowerCase())) }, today, 5)
+    out.push(`<leads note="LinkedIn profiles he clipped; not yet contacted. Suggest real people from here.">`)
+    out.push(`${open.length} open leads — by company: ${tally((l) => l.company || 'unknown')}; by role: ${tally((l) => ROLE_LABEL[l.role_kind])}; ${open.filter((l) => l.mutuals > 0).length} share mutual connections.`)
+    out.push("Today's picks:")
+    for (const l of picks) {
+      out.push(
+        `- ${ref('l', l.id)} ${l.name} · ${ROLE_LABEL[l.role_kind]} · ${l.company || 'company unknown'} · ${l.location}${l.mutuals ? ` · mutuals: ${l.mutual_names || l.mutuals}` : ''} · "${l.headline.slice(0, 90)}"`,
+      )
+    }
+    out.push('</leads>')
+  }
+
+  const upcoming = upcomingAssignments(st.assignments, st.now, 14)
+  out.push('<school>')
+  if (!upcoming.length) out.push(st.assignments.length ? 'Nothing due in the next two weeks.' : '(assignment checker not connected yet)')
+  for (const a of upcoming.slice(0, 10)) {
+    out.push(`- ${ref('a', a.id)} ${a.title} · ${courseShort(a.course, s.classes)} · due ${dueIn(a.due_at!, st.now)}${assignmentDone(a) ? ' · done' : ''}`)
+  }
+  out.push('</school>')
 
   const problems = live(st.problems)
   const solvedByPattern = PATTERNS.map((p) => {

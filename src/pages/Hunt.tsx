@@ -11,6 +11,7 @@ import {
   type ContactStatus,
   type Job,
   type JobStatus,
+  type Lead,
   type LogEntry,
 } from '@core/index.ts'
 import { useApp, useRows } from '../lib/app'
@@ -19,8 +20,9 @@ import { PageHeader } from '../components/Shell'
 import { Avatar, Empty, Segmented, SectionTitle } from '../components/ui'
 import { CONTACT_STATUS, ContactSheet, JOB_STATUS, JobSheet } from '../components/HuntSheets'
 import { CellTile } from '../components/Cells'
+import { LeadSheet, LeadsDirectory, TodaysPicks } from '../components/Leads'
 
-type Tab = 'people' | 'jobs' | 'companies'
+type Tab = 'leads' | 'people' | 'jobs' | 'companies'
 
 const PIPELINE: ContactStatus[] = ['to_contact', 'messaged', 'replied', 'referred']
 const JOB_FLOW: JobStatus[] = ['saved', 'applied', 'oa', 'interview', 'offer']
@@ -45,10 +47,15 @@ function alumniSearch(company: string) {
 export function HuntPage() {
   const { settings, updateSettings } = useApp()
   const [params, setParams] = useSearchParams()
-  const tab = (params.get('tab') as Tab) || 'people'
-  const setTab = (t: Tab) => setParams({ tab: t }, { replace: true })
   const contacts = live(useRows<Contact>('contacts'))
   const jobs = live(useRows<Job>('jobs'))
+  const leadRows = useRows<Lead>('leads')
+  const leads = useMemo(() => live(leadRows), [leadRows])
+  const tab = (params.get('tab') as Tab) || (leads.length ? 'leads' : 'people')
+  const setTab = (t: Tab) => setParams({ tab: t }, { replace: true })
+  const [leadCompany, setLeadCompany] = useState('all')
+  const [openLead, setOpenLead] = useState<string | null>(null)
+  const lead = openLead ? (leads.find((l) => l.id === openLead) ?? null) : null
   const logs = useRows<LogEntry>('logs')
   const checkins = useRows<Checkin>('day_checkins')
   const today = logicalDay(new Date(), settings.rolloverHour)
@@ -63,17 +70,17 @@ export function HuntPage() {
   const replies = contacts.filter((c) => c.status === 'replied' || c.status === 'referred').length
 
   const counts = useMemo(() => {
-    const byCompany = new Map<string, { people: number; jobs: number }>()
-    for (const c of contacts) {
-      const k = c.company.toLowerCase()
-      byCompany.set(k, { people: (byCompany.get(k)?.people ?? 0) + 1, jobs: byCompany.get(k)?.jobs ?? 0 })
+    const byCompany = new Map<string, { people: number; jobs: number; leads: number }>()
+    const bump = (company: string, key: 'people' | 'jobs' | 'leads') => {
+      const k = company.toLowerCase()
+      const cur = byCompany.get(k) ?? { people: 0, jobs: 0, leads: 0 }
+      byCompany.set(k, { ...cur, [key]: cur[key] + 1 })
     }
-    for (const j of jobs) {
-      const k = j.company.toLowerCase()
-      byCompany.set(k, { people: byCompany.get(k)?.people ?? 0, jobs: (byCompany.get(k)?.jobs ?? 0) + 1 })
-    }
+    for (const c of contacts) bump(c.company, 'people')
+    for (const j of jobs) bump(j.company, 'jobs')
+    for (const l of leads) if (!l.contact_id && !l.hidden) bump(l.company, 'leads')
     return byCompany
-  }, [contacts, jobs])
+  }, [contacts, jobs, leads])
 
   const toggleTarget = (name: string) => {
     const set = new Set(settings.targetCompanies)
@@ -132,35 +139,49 @@ export function HuntPage() {
         </div>
       </div>
 
+      {due.length > 0 && (
+        <section className="card mt-4 p-4 ring-2 ring-accent/30">
+          <SectionTitle title="Follow-ups due" hint="A short, friendly bump works more often than you’d think." />
+          <ul className="divide-y divide-line">
+            {due.map((c) => (
+              <ContactRow key={c.id} c={c} />
+            ))}
+          </ul>
+        </section>
+      )}
+
+      <div className="mt-4">
+        <TodaysPicks leads={leads} onOpen={(l) => setOpenLead(l.id)} />
+      </div>
+
       <Segmented
         className="mb-4 mt-5"
         value={tab}
         onChange={setTab}
         options={[
-          { value: 'people', label: 'People', count: due.length },
+          ...(leads.length ? [{ value: 'leads' as Tab, label: 'Leads' }] : []),
+          { value: 'people', label: 'Pipeline' },
           { value: 'jobs', label: 'Jobs' },
           { value: 'companies', label: 'Companies' },
         ]}
       />
 
+      {tab === 'leads' && (
+        <LeadsDirectory leads={leads} company={leadCompany} onCompany={setLeadCompany} onOpen={(l) => setOpenLead(l.id)} />
+      )}
+
       {tab === 'people' && (
         <div className="space-y-4">
-          {due.length > 0 && (
-            <section className="card p-4 ring-2 ring-accent/30">
-              <SectionTitle title="Follow-ups due" hint="A short, friendly bump works more often than you’d think." />
-              <ul className="divide-y divide-line">
-                {due.map((c) => (
-                  <ContactRow key={c.id} c={c} />
-                ))}
-              </ul>
-            </section>
-          )}
           {contacts.length === 0 ? (
             <div className="card">
               <Empty
                 mood="wink"
                 title="Who could refer you?"
-                body="Add one person at a company that sponsors. CU Boulder alumni are the warmest intros — check the Companies tab."
+                body={
+                  leads.length
+                    ? 'Message someone from Today’s picks, or add a person yourself. CU Boulder alumni are the warmest intros.'
+                    : 'Add one person at a company that sponsors. CU Boulder alumni are the warmest intros — check the Companies tab.'
+                }
                 action={
                   <button type="button" className="btn-primary" onClick={() => setContactSheet({ contact: null })}>
                     <Plus className="h-4 w-4" /> Add a person
@@ -268,6 +289,7 @@ export function HuntPage() {
             {companies.map((c) => {
               const count = counts.get(c.name.toLowerCase())
               const starred = settings.targetCompanies.includes(c.name)
+              const saved = count ? [count.people && plural(count.people, 'person', 'people'), count.jobs && plural(count.jobs, 'job')].filter(Boolean).join(' · ') : ''
               return (
                 <li key={c.name} className="card flex items-center gap-3 px-4 py-3">
                   <button
@@ -287,7 +309,20 @@ export function HuntPage() {
                           <MapPin className="h-3 w-3" /> {c.colorado} ·
                         </span>
                       )}
-                      {count ? `${plural(count.people, 'person', 'people')} · ${plural(count.jobs, 'job')}` : 'Nobody saved yet'}
+                      {count?.leads ? (
+                        <button
+                          type="button"
+                          className="font-extrabold text-a-hunt underline decoration-dotted underline-offset-4"
+                          onClick={() => {
+                            setLeadCompany(c.name)
+                            setTab('leads')
+                          }}
+                        >
+                          {plural(count.leads, 'lead')} on your list
+                        </button>
+                      ) : null}
+                      {count?.leads && saved ? ' · ' : ''}
+                      {saved || (count?.leads ? '' : 'Nobody saved yet')}
                     </p>
                   </div>
                   <a className="btn-soft btn-sm" href={alumniSearch(c.name)} target="_blank" rel="noreferrer" title="CU Boulder alumni there">
@@ -303,6 +338,14 @@ export function HuntPage() {
         </div>
       )}
 
+      <LeadSheet
+        lead={lead}
+        onClose={() => setOpenLead(null)}
+        onOpenContact={(c) => {
+          setOpenLead(null)
+          setContactSheet({ contact: c })
+        }}
+      />
       <ContactSheet
         open={Boolean(contactSheet)}
         onClose={() => setContactSheet(null)}
