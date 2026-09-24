@@ -1,188 +1,82 @@
 # Autobot
 
-Cute caretaker bot for **Pratik Pujari**’s daily lock-in (CU Boulder MS CS).
+A robot friend that plans your day, remembers what matters, and nudges you toward the job.
+Built for one CU Boulder MS CS student's lock-in: **job hunt → LeetCode → health**.
 
-**Priorities:** Job hunt → LeetCode → Fitness  
-**Rule:** Deep work on campus. Home ≠ grind.
+Live: https://dracula-101.github.io/autobot/ — install it from Safari/Chrome (“Add to Home Screen”)
+to get push notifications on your phone.
 
-Autobot watches the week, nudges gently, and celebrates check-ins — warm, refined, not childish spam.
+## What it does
 
-Live (after Pages deploy): `https://Dracula-101.github.io/autobot/`
+- **Follows the sky.** The whole UI (and the robot) shifts through dawn, day, dusk and night using the
+  real Boulder sunrise and sunset.
+- **Clock-free days.** Each day is autofilled from weekly targets (referrals, applications, LeetCode,
+  workouts) into *moments* — after waking, out of the room, evening, night-owl hours, before bed.
+  Only classes have times. Autobot spotlights one **Next up** mission at a time; skipped work rolls
+  into the rest of the week.
+- **Routines + reminders.** Morning and night stacks (pill + hair serum) get one push each: shortly
+  after you first open the app, and before bedtime. Classes, bedtime, referral follow-ups, stalled
+  days and the Sunday wrap-up get pushes too.
+- **Chat with memory.** Autobot (Gemini, server-side) knows what you've told it, sees your live plan,
+  and can change things with tools — log a LeetCode problem, move a mission, add a contact, save a
+  memory. Every turn and every change is stored in Supabase and shows up on every device.
+- **Hunt / Prep / Body.** Referral pipeline with follow-up tracking and AI-drafted asks, a
+  sponsor-friendly company list with CU Boulder alumni search, a pattern-by-pattern LeetCode roadmap
+  with spaced review, routines, workouts, and sleep consistency.
 
----
+## Architecture
 
-## Design overview
+```
+GitHub Pages (Vite + React PWA)                 Supabase (project "AutoBot")
+┌──────────────────────────────┐   realtime     ┌─────────────────────────────────────┐
+│ offline-first sync store     │◀──────────────▶│ Postgres + RLS: missions, routines,  │
+│ (localStorage + upload queue)│   REST upserts │ logs, memories, contacts, jobs,      │
+│ service worker (push, shell) │                │ problems, chat_messages, activity…   │
+└──────────────┬───────────────┘                ├─────────────────────────────────────┤
+               │ invoke                         │ Edge Function autobot-chat           │
+               └───────────────────────────────▶│  Gemini + tools, stores every turn   │
+                                                │ Edge Function autobot-notify         │
+        phone ◀── Web Push (VAPID) ─────────────│  due reminders → push, deduped       │
+                                                │ pg_cron: every 5 min → notify        │
+                                                │ Vault: Gemini key, cron secret       │
+                                                └─────────────────────────────────────┘
+```
 
-Dark, refined UI — not generic purple AI chrome. Soft robot personality layered on top.
+Shared logic (time, sunrise, planner, reminders, voice, LeetCode roadmap) lives in
+`supabase/functions/_shared/core/` and is imported by both the web app (`@core/…`) and the Edge
+Functions, so the app and the push reminders always agree on what "today" and "due" mean.
+The day rolls over at 5 AM, so 2 AM still counts as tonight.
 
-| Token | Value |
-|--------|--------|
-| Background | `#0c0d10` near-black |
-| Cards | `#16181d` warm charcoal |
-| Accent (done) | `#7dcea0` soft sage |
-| Due today | `#e8b86d` amber |
-| Missed | `#c97b84` muted rose |
-| Type | DM Sans + JetBrains Mono (counts) |
-
-- Inline SVG **Autobot** mascot (`idle` / `happy` / `nudge` / `sleep`)
-- Horizontal Mon–Sun week strip with today highlight
-- Weekly quota progress rings
-- Thumb-friendly 44px check targets, spring checkbox animation, strikethrough
-- Sticky **Check in with me** CTA (engagement ≠ finishing every task)
-- Guest/localStorage mode when Supabase env is missing
-
----
-
-## Local development
+## Develop
 
 ```bash
-cd lockin-checkin   # local folder name; repo/Pages path is autobot
-cp .env.example .env   # already present empty — paste keys when ready
 npm install
-npm run dev
+npm run dev                          # uses .env (Supabase)
+VITE_FORCE_LOCAL=1 npm run dev       # no account; open /?demo for sample data
+npm test                             # core logic (vitest)
+npm run test:functions               # Edge Function tools (deno)
+npm run check:functions              # type-check Edge Functions (deno)
 ```
 
-Open the Vite URL (usually `http://localhost:5173`).  
-Without Supabase keys the app runs in **guest mode** with a “Connect Supabase” banner; all progress persists in `localStorage`.
+## Supabase
 
 ```bash
-npm run build    # tsc + vite → dist/
-npm run preview  # preview production build
+npx supabase link --project-ref jpallbmetcrnzwzsmgbp
+npx supabase db push                                   # migrations in supabase/migrations
+npx supabase functions deploy autobot-chat autobot-notify
 ```
 
----
+Secrets:
 
-## Supabase setup
+| Where | Name | Purpose |
+|---|---|---|
+| Supabase function secret | `VAPID_KEYS` | Web Push signing keys (JSON) |
+| Supabase function secret | `ALLOWED_EMAILS` | Only these accounts can use the Gemini-backed chat |
+| Supabase Vault | `gemini_api_key` | Synced from the GitHub secret by the deploy workflow |
+| Supabase Vault | `autobot_cron_secret` | Generated in-database; shared by pg_cron and the notify function |
+| GitHub secret | `GEMINI_API_KEY` (or legacy `VITE_GEMINI_API_KEY`) | Source for the Vault copy — never bundled into the site |
+| GitHub secret | `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` | Browser client |
+| GitHub secret | `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` | Deploy workflow's Vault sync |
 
-1. Create a project at [supabase.com](https://supabase.com).
-2. **SQL Editor** → paste and run `supabase/schema.sql`.
-3. **Authentication → Providers** → enable **Email**.
-4. (Optional) disable email confirmation for single-user convenience under Auth settings.
-5. Copy **Project URL** and **anon public** key into `.env`:
-
-```
-VITE_SUPABASE_URL=https://xxxx.supabase.co
-VITE_SUPABASE_ANON_KEY=eyJ...
-```
-
-6. Create one account via the app’s Sign up screen (or Auth page).  
-   Profile rows are auto-created by a trigger; `reminder_email` defaults to signup email.
-
-### Tables
-
-- `profiles` — display name, reminder email, sport day (`mon`|`sun`), timezone
-- `day_checkins` — tapped “Check in” for a Denver calendar date
-- `task_completions` — per-task checks (`task_id` like `wed-block-a-outreach`)
-- `weekly_notes` — Sunday win / fix / focus
-
-RLS: users only read/write their own rows.
-
----
-
-## Environment variables
-
-See `.env.example`. Never commit real secrets (`.env` is gitignored).
-
-| Variable | Where | Purpose |
-|----------|--------|---------|
-| `VITE_SUPABASE_URL` | `.env` + Pages secret | Browser Supabase client |
-| `VITE_SUPABASE_ANON_KEY` | `.env` + Pages secret | Browser anon key |
-| `VITE_BASE` | build | Defaults to `/autobot/` |
-| `SUPABASE_URL` | Actions secret | Reminder script (same URL) |
-| `SUPABASE_SERVICE_ROLE_KEY` | Actions secret | Server-side check-in query |
-| `REMINDER_TO_EMAIL` | Actions secret | Must match `profiles.reminder_email` |
-| `SMTP_*` | Actions secret | Nodemailer transport |
-| `PAGES_URL` | Actions secret | Link in reminder email |
-
----
-
-## GitHub Pages deploy
-
-Repo should be named **`autobot`** (base path `/autobot/`), or set `VITE_BASE` accordingly.
-
-1. Push this project to GitHub (`git remote add origin … && git push -u origin main`).
-2. **Settings → Pages → Build and deployment** → Source: **GitHub Actions**.
-3. Add repository secrets used by `deploy-pages.yml`:
-   - `VITE_SUPABASE_URL`
-   - `VITE_SUPABASE_ANON_KEY`
-4. Push to `main` (or run the **Deploy to GitHub Pages** workflow manually).
-
-Optional local deploy: `npm run deploy` (uses `gh-pages` package) — Actions is preferred.
-
-`package.json` `homepage` is set to `https://Dracula-101.github.io/autobot`.
-
----
-
-## Miss-day email reminder
-
-Workflow: `.github/workflows/daily-reminder.yml`  
-Script: `scripts/send-reminder.mjs` (Node + nodemailer — **not** in the browser)
-
-Autobot voice: warm soft nudge, never naggy.
-
-### Schedule / timezone nuance
-
-```yaml
-cron: '0 2 * * *'   # 02:00 UTC
-```
-
-- During **MDT** (UTC−6): ≈ **8:00pm America/Denver**
-- During **MST** (UTC−7): ≈ **7:00pm America/Denver**
-
-“Today” inside the script is always computed with `America/Denver` via `Intl`, independent of the runner’s clock.
-
-### Logic
-
-1. Resolve profile where `reminder_email = REMINDER_TO_EMAIL`
-2. Look for `day_checkins` row for Denver-today
-3. If missing → send a short, warm Autobot email with link to `PAGES_URL`
-
-### GitHub Secrets checklist
-
-| Secret | Required |
-|--------|----------|
-| `SUPABASE_URL` | ✓ |
-| `SUPABASE_SERVICE_ROLE_KEY` | ✓ |
-| `REMINDER_TO_EMAIL` | ✓ |
-| `SMTP_HOST` | ✓ |
-| `SMTP_PORT` | ✓ (usually `587`) |
-| `SMTP_USER` | ✓ |
-| `SMTP_PASS` | ✓ |
-| `SMTP_FROM` | ✓ |
-| `PAGES_URL` | ✓ |
-| `VITE_SUPABASE_URL` | for Pages build |
-| `VITE_SUPABASE_ANON_KEY` | for Pages build |
-
-Test anytime: **Actions → Daily miss-day reminder → Run workflow**.
-
----
-
-## Day structure (encoded in `src/data/tasks.ts`)
-
-| Day | Mode |
-|-----|------|
-| Mon | Sport with partner **or** light campus (toggle via sport day) |
-| Tue | Class day — Linux, Graphics, Capstone; gap admin; campus LC; night peak |
-| Wed | Full campus — Block A hunt, B LC, C coursework |
-| Thu | Class day (same pattern as Tue) |
-| Fri | Full campus + resume pass in night peak |
-| Sat | Finish weekly outreach (5), roles (10), LC toward 8–12, close HW |
-| Sun | Sport **or** light campus + weekly scoreboard reset |
-
----
-
-## Scripts
-
-| Command | Description |
-|---------|-------------|
-| `npm run dev` | Vite dev server |
-| `npm run build` | Typecheck + production build |
-| `npm run preview` | Serve `dist` |
-| `npm run deploy` | `gh-pages -d dist` |
-| `npm run reminder` | Run miss-day script locally (needs env) |
-
----
-
-## Stack
-
-Vite · React 18 · TypeScript · Tailwind CSS v3 · lucide-react · date-fns + America/Denver · Supabase · GitHub Pages · GitHub Actions + nodemailer
+Personal starter knowledge is not in this public repo: it sits in the private `memory_inbox` table
+and is claimed into `memories` the first time the matching account signs in.

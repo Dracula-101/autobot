@@ -1,17 +1,22 @@
 {
   "name": "Autobot",
   "short_name": "Autobot",
-  "description": "Cute caretaker for your daily lock-in — Job hunt → LeetCode → Fitness",
+  "description": "Your robot friend: plans your day, remembers what matters, and nudges you toward the job.",
+  "id": "./",
   "start_url": "./",
+  "scope": "./",
   "display": "standalone",
-  "background_color": "#0c0d10",
-  "theme_color": "#0c0d10",
+  "orientation": "portrait",
+  "background_color": "#0A0F24",
+  "theme_color": "#0A0F24",
+  "categories": ["productivity", "education", "health"],
   "icons": [
-    {
-      "src": "favicon.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
-      "purpose": "any maskable"
-    }
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Chat with Autobot", "url": "./chat", "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }] },
+    { "name": "Hunt", "url": "./hunt", "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }] }
   ]
 }
