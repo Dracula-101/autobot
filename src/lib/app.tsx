@@ -122,7 +122,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
-      options: { data: { display_name: name } },
+      options: {
+        data: { display_name: name },
+        // The confirmation link lands back in the app (must be an allowed redirect URL in Supabase Auth).
+        emailRedirectTo: `${window.location.origin}${import.meta.env.BASE_URL}`,
+      },
     })
     if (error) return { error: error.message, confirm: false }
     return { error: null, confirm: !data.session }

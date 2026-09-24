@@ -30,7 +30,7 @@ export function AuthPage() {
       const res = await signUp(email.trim(), password, name.trim() || email.split('@')[0])
       if (res.error) setError(res.error)
       else if (res.confirm) {
-        setInfo('Check your email to confirm, then sign in here.')
+        setInfo('Check your email and tap the confirmation link, then sign in here.')
         setMode('in')
       }
     }

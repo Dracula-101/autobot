@@ -126,3 +126,33 @@ Deno.test('update_settings validates and writes the whole settings blob', async 
   const saved = writes.find((w) => w.table === 'profiles')!.row.settings as typeof DEFAULT_SETTINGS
   assertEquals(saved.sleep.bed, '02:00')
 })
+
+// COLUMNS_JSON=/path/to/columns.json deno test --allow-env --allow-read tests/tools.deno.test.ts
+Deno.test({
+  name: 'every tool write uses columns that exist in the live schema',
+  ignore: !Deno.env.get('COLUMNS_JSON'),
+  fn: async () => {
+    const columns = JSON.parse(await Deno.readTextFile(Deno.env.get('COLUMNS_JSON')!)) as Record<string, string[]>
+    const writes: Write[] = []
+    const st = state()
+    const tb = new Toolbox(fakeDb(writes), st)
+    const mission = st.missions.find((m) => m.target_key)!
+    await tb.run(call('remember', { category: 'goal', content: 'Land a new-grad role' }))
+    await tb.run(call('update_memory', { ref: st.memories[0].id.slice(0, 8), pinned: true }))
+    await tb.run(call('forget', { ref: st.memories[0].id.slice(0, 8) }))
+    await tb.run(call('add_mission', { title: 'Email Priya', area: 'hunt', target: 'referral', amount: 1 }))
+    await tb.run(call('update_mission', { ref: mission.id.slice(0, 8), status: 'done' }))
+    await tb.run(call('update_mission', { ref: mission.id.slice(0, 8), status: 'todo', when: 'tomorrow' }))
+    await tb.run(call('log_progress', { kind: 'workout', amount: 1, note: 'racket' }))
+    await tb.run(call('log_problem', { title: 'LRU Cache', result: 'hints' }))
+    await tb.run(call('save_contact', { name: 'Priya', company: 'Google', status: 'messaged' }))
+    await tb.run(call('save_job', { company: 'Stripe', title: 'SWE', status: 'applied' }))
+    await tb.run(call('mark_routine', { ref: 'morning pill' }))
+    await tb.run(call('update_settings', { key: 'targets.leetcode', value: '15' }))
+    for (const w of writes) {
+      const extra = Object.keys(w.row).filter((k) => !columns[w.table]?.includes(k))
+      assertEquals(extra, [], `${w.table} ${w.op} has unknown columns`)
+    }
+    assert(writes.length > 15)
+  },
+})
