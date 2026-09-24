@@ -24,16 +24,16 @@ export function dueLabel(dueAt: string, today: string): string {
   return `${relativeDay(w.date, today)} ${formatClock(w.minutes)}`
 }
 
-/** Tone by how close the deadline is. */
-export function urgency(dueAt: string, now: Date): 'late' | 'soon' | 'near' | 'later' {
+/** Tone by how close the deadline is. Past deadlines stay neutral: the checker can't see submissions. */
+export function urgency(dueAt: string, now: Date): 'past' | 'soon' | 'near' | 'later' {
   const hours = (new Date(dueAt).getTime() - now.getTime()) / 3_600_000
-  if (hours < 0) return 'late'
+  if (hours < 0) return 'past'
   if (hours <= 24) return 'soon'
   if (hours <= 72) return 'near'
   return 'later'
 }
 
-const URGENCY_TEXT = { late: 'text-rose', soon: 'text-accent', near: 'text-amber', later: 'text-ink-3' }
+const URGENCY_TEXT = { past: 'text-ink-3', soon: 'text-accent', near: 'text-amber', later: 'text-ink-3' }
 
 export function AssignmentRow({ a, now }: { a: Assignment; now: Date }) {
   const { settings } = useApp()
@@ -97,7 +97,7 @@ export function DueSoonCard({ due, now }: { due: Assignment[]; now: Date }) {
   const first = due[0]
   const pressing = first.due_at ? urgency(first.due_at, now) : 'later'
   return (
-    <section className={`card p-4 ${pressing === 'soon' || pressing === 'late' ? 'ring-2 ring-accent/30' : ''}`}>
+    <section className={`card p-4 ${pressing === 'soon' ? 'ring-2 ring-accent/30' : ''}`}>
       <SectionTitle
         title="Due soon"
         hint="From your assignment checker"

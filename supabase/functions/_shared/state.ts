@@ -78,7 +78,8 @@ export async function loadState(
         ? mine('chat_messages').order('created_at', { ascending: false }).limit(opts.history)
         : Promise.resolve({ data: [], error: null }),
       mine('leads').limit(3000),
-      mine('assignments').gte('due_at', addDays(today, -2)).order('due_at', { ascending: true }).limit(200),
+      // A semester is a few dozen assignments; load them all so "last report" is accurate.
+      mine('assignments').order('due_at', { ascending: true }).limit(500),
     ])
 
   return {

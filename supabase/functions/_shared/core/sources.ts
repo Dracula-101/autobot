@@ -220,17 +220,41 @@ export interface RawAssignment {
 
 export type AssignmentFields = Omit<Assignment, 'id' | 'user_id' | 'created_at' | 'updated_at' | 'deleted_at' | 'done_at'>
 
+const tidy = (s: string | null | undefined) => (s ?? '').replace(/\s+/g, ' ').trim()
+
+/** One key per real assignment: the Canvas assignment in its URL, else course + title. */
+export function assignmentKey(r: RawAssignment): string {
+  const canvas = /\/courses\/(\d+)\/assignments\/(\d+)/.exec(r.url ?? '')
+  if (canvas) return `canvas:${canvas[1]}:${canvas[2]}`
+  return `${tidy(r.course_name).toLowerCase()}|${tidy(r.assignment_name).toLowerCase()}`
+}
+
 export function normalizeAssignment(r: RawAssignment): AssignmentFields {
   return {
     source: 'checker',
-    source_id: String(r.id),
-    title: (r.assignment_name ?? '').trim() || 'Assignment',
-    course: (r.course_name ?? '').trim(),
+    source_id: assignmentKey(r),
+    title: tidy(r.assignment_name) || 'Assignment',
+    course: tidy(r.course_name),
     due_at: r.due_at ?? null,
     url: (r.url ?? '').trim(),
-    source_status: (r.status ?? '').trim(),
+    source_status: tidy(r.status),
     checked_at: r.checked_at ?? null,
   }
+}
+
+/**
+ * The checker logs a row per assignment every time it runs, so the same
+ * assignment shows up many times. Keep one per assignment, from its latest check.
+ */
+export function assignmentsFromChecks(rows: RawAssignment[]): AssignmentFields[] {
+  const latest = new Map<string, RawAssignment>()
+  const at = (r: RawAssignment) => `${r.checked_at ?? ''}|${String(r.id).padStart(12, '0')}`
+  for (const r of rows) {
+    const key = assignmentKey(r)
+    const cur = latest.get(key)
+    if (!cur || at(r) > at(cur)) latest.set(key, r)
+  }
+  return [...latest.values()].map(normalizeAssignment)
 }
 
 const DONE_STATUS = /\b(submitted|completed?|graded|done|turned in|excused|finished)\b/i
@@ -241,19 +265,22 @@ export function assignmentDone(a: Pick<Assignment, 'done_at' | 'source_status'>)
   return DONE_STATUS.test(a.source_status) && !NOT_DONE.test(a.source_status)
 }
 
-/** Match "CSCI 5229-001: Computer Graphics" to his class short name ("Graphics"). */
+/** Match "CSCI 4229-5229-001:Computer Graphics" to his class short name ("Graphics"). */
 export function courseShort(course: string, classes: ClassBlock[]): string {
-  const num = /\b(\d{4})\b/.exec(course)?.[1]
+  const nums = course.match(/\b\d{4}\b/g) ?? []
   const hit = classes.find(
-    (c) => (num && c.id.includes(num)) || course.toLowerCase().includes(c.name.toLowerCase()),
+    (c) => nums.some((n) => c.id.includes(n)) || course.toLowerCase().includes(c.name.toLowerCase()),
   )
   if (hit) return hit.short
-  return course.replace(/^[A-Z]{2,5}\s*\d{4}(-\d+)?\s*[:-]\s*/, '').slice(0, 32) || course
+  return course.replace(/^[A-Z]{2,5}\s*\d{4}(-\d+)*\s*[:-]\s*/, '').split('/')[0].slice(0, 32) || course
 }
 
-/** Open assignments due from yesterday onward, soonest first. */
+/**
+ * Open assignments that aren't due yet, soonest first. The checker can't see
+ * submissions, so anything past its deadline is history, not "overdue".
+ */
 export function upcomingAssignments(list: Assignment[], now: Date, withinDays = 14): Assignment[] {
-  const from = now.getTime() - 86_400_000
+  const from = now.getTime()
   const to = now.getTime() + withinDays * 86_400_000
   return list
     .filter((a) => !a.deleted_at && !assignmentDone(a) && a.due_at)
@@ -262,6 +289,13 @@ export function upcomingAssignments(list: Assignment[], now: Date, withinDays = 
       return t >= from && t <= to
     })
     .sort((a, b) => (a.due_at ?? '').localeCompare(b.due_at ?? ''))
+}
+
+/** When the checker last reported anything (its newest check). */
+export function lastCheck(list: Assignment[]): string | null {
+  let latest: string | null = null
+  for (const a of list) if (!a.deleted_at && a.checked_at && (!latest || a.checked_at > latest)) latest = a.checked_at
+  return latest
 }
 
 /** "in 5h", "tomorrow", "in 3 days", "2h ago" */

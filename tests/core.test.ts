@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import {
   assignmentDone,
+  assignmentsFromChecks,
   classesOn,
+  courseShort,
+  lastCheck,
+  upcomingAssignments,
   DEFAULT_SETTINGS,
   dayMinutes,
   dayType,
@@ -393,6 +397,34 @@ describe('sources', () => {
     expect(done('unsubmitted')).toBe(false)
     expect(done('incomplete')).toBe(false)
     expect(done('missing', '2026-09-20T00:00:00Z')).toBe(true)
+  })
+
+  it('collapses repeated checker rows into one assignment per Canvas link', () => {
+    const url = 'https://canvas.colorado.edu/courses/111/assignments/222'
+    const checks = [
+      { id: 1, assignment_name: 'Lab 9:  Test  Lab', course_name: 'CSCI 4113-5030-5113-001:Linux System Administration/Fund Sys Admin', due_at: '2026-10-01T05:59:00Z', url, status: 'upcoming', checked_at: '2026-09-20T17:00:00Z' },
+      { id: 2, assignment_name: 'Lab 9: Test Lab', course_name: 'CSCI 4113-5030-5113-001:Linux System Administration/Fund Sys Admin', due_at: '2026-10-02T05:59:00Z', url, status: 'upcoming', checked_at: '2026-09-22T17:00:00Z' },
+      { id: 3, assignment_name: 'HW 9', course_name: 'CSCI 4229-5229-001:Computer Graphics', due_at: '2026-09-30T05:59:00Z', url: '', status: 'upcoming', checked_at: '2026-09-21T17:00:00Z' },
+    ]
+    const list = assignmentsFromChecks(checks)
+    expect(list).toHaveLength(2)
+    const lab = list.find((a) => a.source_id === 'canvas:111:222')!
+    expect(lab).toMatchObject({ title: 'Lab 9: Test Lab', due_at: '2026-10-02T05:59:00Z', checked_at: '2026-09-22T17:00:00Z' })
+    expect(courseShort(lab.course, S.classes)).toBe('Linux')
+    expect(courseShort('CSCI 4229-5229-001:Computer Graphics', S.classes)).toBe('Graphics')
+    expect(courseShort('CSCI 4830-001:Special Topics/Robotics', S.classes)).toBe('Special Topics')
+  })
+
+  it('treats only not-yet-due work as upcoming, and knows when the checker last reported', () => {
+    const now = new Date('2026-09-24T22:00:00Z')
+    const base = { source: 'checker', course: 'CSCI 5229', url: '', source_status: 'upcoming' }
+    const list: Assignment[] = [
+      { ...base, id: 'a', source_id: 'a', title: 'Past', due_at: '2026-09-24T20:00:00Z', checked_at: '2026-09-20T17:17:00Z' },
+      { ...base, id: 'b', source_id: 'b', title: 'Next', due_at: '2026-09-25T05:59:00Z', checked_at: '2026-09-16T17:56:00Z' },
+      { ...base, id: 'c', source_id: 'c', title: 'Done early', due_at: '2026-09-26T05:59:00Z', done_at: '2026-09-24T00:00:00Z' },
+    ]
+    expect(upcomingAssignments(list, now).map((a) => a.title)).toEqual(['Next'])
+    expect(lastCheck(list)).toBe('2026-09-20T17:17:00Z')
   })
 
   it('reminds about a deadline the day before and three hours before', () => {

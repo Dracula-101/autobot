@@ -8,7 +8,7 @@
 import { json, preflight } from '../_shared/http.ts'
 import { adminClient, isAllowed, secret, userFromRequest, type Db } from '../_shared/db.ts'
 import {
-  normalizeAssignment,
+  assignmentsFromChecks,
   normalizeProfile,
   stableId,
   type RawAssignment,
@@ -109,10 +109,10 @@ async function importAssignments(db: Db, userId: string): Promise<SourceResult> 
   const key = service ?? (await secret('ASSIGNMENTS_SUPABASE_KEY', 'assignments_supabase_key'))
   if (!url || !key) return { source: 'checker', ok: false, rows: 0, written: 0, removed: 0, message: 'Not connected' }
   const raw = await fetchAll(url, key, 'assignment_checks', 'id,assignment_name,course_name,due_at,url,status,checked_at')
-  const rows = raw.map((r) => {
-    const a = normalizeAssignment(r as unknown as RawAssignment)
-    return { ...a, id: stableId(`${userId}:assignment:${a.source_id}`), user_id: userId } as Row
-  })
+  // The checker logs every assignment on every run; keep one row per real assignment.
+  const rows = assignmentsFromChecks(raw as unknown as RawAssignment[]).map(
+    (a) => ({ ...a, id: stableId(`${userId}:assignment:${a.source_id}`), user_id: userId }) as Row,
+  )
   // With only a publishable key, RLS can hide every row; don't wipe what we have.
   if (!rows.length && !service) {
     return {

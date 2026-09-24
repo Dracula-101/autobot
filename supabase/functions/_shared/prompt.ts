@@ -4,7 +4,10 @@ import {
   courseShort,
   dailyPicks,
   dueIn,
+  formatDate,
   isOpenLead,
+  lastCheck,
+  wallClock,
   ROLE_LABEL,
   upcomingAssignments,
   CELL_LABEL,
@@ -167,8 +170,19 @@ export function buildContext(st: UserState): string {
   }
 
   const upcoming = upcomingAssignments(st.assignments, st.now, 14)
-  out.push('<school>')
-  if (!upcoming.length) out.push(st.assignments.length ? 'Nothing due in the next two weeks.' : '(assignment checker not connected yet)')
+  const checked = lastCheck(st.assignments)
+  out.push(
+    `<school note="From his assignment checker, which only reports not-yet-due Canvas assignments and can't see submissions.${
+      checked ? ` Its last report: ${formatDate(wallClock(new Date(checked)).date, { weekday: true })}.` : ''
+    }">`,
+  )
+  if (!upcoming.length) {
+    out.push(
+      st.assignments.length
+        ? 'No upcoming deadlines reported. If the last report is days old, the checker may have missed new work — ask, don’t assume he’s free.'
+        : '(assignment checker not connected yet)',
+    )
+  }
   for (const a of upcoming.slice(0, 10)) {
     out.push(`- ${ref('a', a.id)} ${a.title} · ${courseShort(a.course, s.classes)} · due ${dueIn(a.due_at!, st.now)}${assignmentDone(a) ? ' · done' : ''}`)
   }

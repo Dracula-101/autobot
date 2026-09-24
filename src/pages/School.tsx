@@ -1,9 +1,9 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { assignmentDone, courseShort, live, type Assignment } from '@core/index.ts'
+import { courseShort, formatDate, lastCheck, live, wallClock, type Assignment } from '@core/index.ts'
 import { useApp, useRows } from '../lib/app'
 import { useNow } from '../lib/clock'
-import { ago, healthy, useSources } from '../lib/sources'
+import { healthy, useSources } from '../lib/sources'
 import { PageHeader } from '../components/Shell'
 import { AssignmentRow } from '../components/School'
 import { Empty, SectionTitle } from '../components/ui'
@@ -36,22 +36,23 @@ export function SchoolPage() {
   const short = (a: Assignment) => courseShort(a.course, classes)
   const courses = useMemo(() => [...new Set(all.map((a) => courseShort(a.course, classes)))].sort(), [all, classes])
 
+  // The checker only reports assignments before they're due and can't see
+  // submissions, so past deadlines are history, not "overdue".
   const t = now.getTime()
   const due = (a: Assignment) => (a.due_at ? new Date(a.due_at).getTime() : Infinity)
   const list = all.filter((a) => course === 'all' || short(a) === course)
-  const open = list.filter((a) => !assignmentDone(a))
-  const overdue = open.filter((a) => due(a) < t && t - due(a) < 14 * DAY)
-  const week = open.filter((a) => due(a) >= t && due(a) <= t + 7 * DAY)
-  const later = open.filter((a) => due(a) > t + 7 * DAY)
-  const done = list
-    .filter(assignmentDone)
-    .filter((a) => t - due(a) < 21 * DAY)
-    .reverse()
+  const week = list.filter((a) => due(a) >= t && due(a) <= t + 7 * DAY)
+  const later = list.filter((a) => due(a) > t + 7 * DAY)
+  const past = list.filter((a) => due(a) < t && t - due(a) < 30 * DAY).reverse()
+
+  const reported = lastCheck(all)
+  const reportedOn = reported ? formatDate(wallClock(new Date(reported)).date, { weekday: true }) : null
+  const quiet = reported ? t - new Date(reported).getTime() > 2 * DAY : false
 
   const status = !available
     ? 'Sign in to sync your assignment checker'
-    : checker?.last_ok
-      ? `From your assignment checker · synced ${ago(checker.last_ok)}`
+    : reportedOn
+      ? `From your assignment checker · last report ${reportedOn}`
       : 'From your assignment checker'
 
   return (
@@ -92,20 +93,26 @@ export function SchoolPage() {
               ))}
             </div>
           )}
-          <Group title="Overdue" hint="Still worth turning in — late beats missing" list={overdue} now={now} />
-          <Group title="This week" list={week} now={now} />
-          {!overdue.length && !week.length && (
-            <p className="card p-5 text-[14px] font-semibold text-ink-3">Nothing due this week. Good time to get ahead on the project.</p>
+          <Group title="This week" hint="Tick them off as you submit — reminders stop for done ones" list={week} now={now} />
+          {!week.length && (
+            <div className="card p-5">
+              <p className="text-[15px] font-extrabold text-ink">Nothing due this week that I know of</p>
+              <p className="mt-1 text-[14px] font-semibold text-ink-3">
+                {quiet && reportedOn
+                  ? `Your checker’s last report was ${reportedOn}, so anything assigned since then isn’t here yet. Worth a quick look at Canvas.`
+                  : 'Good time to get ahead on the project.'}
+              </p>
+            </div>
           )}
           <Group title="Later" list={later} now={now} />
-          {done.length > 0 && (
+          {past.length > 0 && (
             <details className="group">
               <summary className="cursor-pointer list-none px-1 text-[14px] font-extrabold text-ink-3 hover:text-ink-2">
-                Done lately <span className="num">({done.length})</span>
+                Past deadlines <span className="num">({past.length})</span>
                 <span className="ml-1 inline-block transition group-open:rotate-90">›</span>
               </summary>
               <ul className="card mt-2 divide-y divide-line px-4">
-                {done.map((a) => (
+                {past.map((a) => (
                   <AssignmentRow key={a.id} a={a} now={now} />
                 ))}
               </ul>
