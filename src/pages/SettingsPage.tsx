@@ -29,13 +29,13 @@ export function SettingsPage() {
   return (
     <div className="animate-fade-up space-y-5">
       <div>
-        <h2 className="text-xl font-semibold tracking-tight">Settings</h2>
-        <p className="mt-1 text-sm text-white/45">Profile & preferences</p>
+        <h2 className="font-display text-xl font-semibold tracking-tight text-cream">Settings</h2>
+        <p className="mt-1 text-sm text-cream/45">Your caretaker preferences</p>
       </div>
 
       <section className="card space-y-4 p-4">
         <div>
-          <label className="mb-1.5 block text-xs text-white/50">Display name</label>
+          <label className="mb-1.5 block text-xs text-cream/50">Display name</label>
           <input
             className="input"
             value={name}
@@ -43,7 +43,7 @@ export function SettingsPage() {
           />
         </div>
         <div>
-          <label className="mb-1.5 block text-xs text-white/50">Reminder email</label>
+          <label className="mb-1.5 block text-xs text-cream/50">Reminder email</label>
           <input
             className="input"
             type="email"
@@ -52,7 +52,7 @@ export function SettingsPage() {
           />
         </div>
         <div>
-          <label className="mb-2 block text-xs text-white/50">Sport day preference</label>
+          <label className="mb-2 block text-xs text-cream/50">Sport day preference</label>
           <div className="flex gap-2">
             {(['mon', 'sun'] as const).map((d) => (
               <button
@@ -63,7 +63,7 @@ export function SettingsPage() {
                   'flex-1 rounded-xl border py-3 text-sm font-semibold capitalize transition',
                   sportDay === d
                     ? 'border-sage/40 bg-sage/10 text-sage'
-                    : 'border-ink-border text-white/50',
+                    : 'border-ink-border text-cream/50',
                 ].join(' ')}
               >
                 {d === 'mon' ? 'Monday' : 'Sunday'}
@@ -80,10 +80,10 @@ export function SettingsPage() {
       </section>
 
       <section className="card space-y-3 p-4">
-        <h3 className="text-sm font-semibold text-white/80">Account</h3>
+        <h3 className="text-sm font-semibold text-cream/80">Account</h3>
         {user ? (
           <>
-            <p className="text-sm text-white/50">{user.email}</p>
+            <p className="text-sm text-cream/50">{user.email}</p>
             <button
               type="button"
               className="btn-ghost w-full"
@@ -94,20 +94,20 @@ export function SettingsPage() {
           </>
         ) : (
           <>
-            <p className="text-sm text-white/50">
+            <p className="text-sm leading-relaxed text-cream/50">
               {supabaseConfigured
-                ? 'Guest mode — sign in to sync.'
-                : 'Supabase not connected — local only.'}
+                ? 'Guest on this device. Sign in when you want Autobot synced.'
+                : 'Cloud not connected yet — everything stays local.'}
             </p>
             <Link to="/auth" className="btn-ghost w-full">
-              <LogIn className="h-4 w-4" /> Sign in / Sign up
+              <LogIn className="h-4 w-4" /> Sync with an account
             </Link>
           </>
         )}
       </section>
 
       <section className="card p-4 text-[11px] leading-relaxed text-ink-muted">
-        <p className="font-medium text-white/40">Hard rules</p>
+        <p className="font-medium text-cream/40">Hard rules</p>
         <ul className="mt-2 list-inside list-disc space-y-1">
           <li>Deep work = campus. Home is for sleep, food, wind-down.</li>
           <li>Cut room YouTube — not sleep.</li>

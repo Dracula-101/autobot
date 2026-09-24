@@ -27,7 +27,7 @@ export function CheckInCTA() {
           <div className="flex items-center justify-center gap-2.5 rounded-2xl border border-sage/30 bg-ink-card/95 px-4 py-3 shadow-card backdrop-blur-md">
             <AutobotMascot mood="happy" size={28} />
             <div className="text-sm">
-              <span className="font-semibold text-sage">You made it — nice.</span>
+              <span className="font-semibold text-sage">Checked in. Proud of you.</span>
               <span className="ml-2 text-white/40">
                 {checkins[today]?.checked_in_at
                   ? new Date(checkins[today].checked_in_at).toLocaleTimeString([], {
@@ -43,10 +43,10 @@ export function CheckInCTA() {
             type="button"
             onClick={() => void handle()}
             disabled={busy}
-            className="btn-primary w-full shadow-[0_8px_32px_rgba(125,206,160,0.25)]"
+            className="btn-primary w-full shadow-glow"
           >
             <AutobotMascot mood="nudge" size={26} className="shrink-0" />
-            {busy ? 'Checking in…' : 'Check in with me'}
+            {busy ? 'One sec…' : 'Check in for today'}
           </button>
         )}
       </div>

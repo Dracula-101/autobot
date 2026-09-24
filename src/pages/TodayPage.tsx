@@ -6,26 +6,31 @@ import { useApp } from '../context/AppContext'
 
 export function TodayPage() {
   const { isCheckedIn, today, profile } = useApp()
-  const name = (profile.display_name || 'Pratik').split(' ')[0]
+  const name = (profile.display_name || 'friend').split(' ')[0]
   const checked = isCheckedIn(today)
 
   return (
-    <div className="space-y-6">
-      <div className="card flex items-center gap-3 px-4 py-3.5">
-        <AutobotMascot mood={checked ? 'happy' : 'idle'} size={36} />
-        <div className="min-w-0">
-          <p className="text-sm font-medium text-white/90">
-            {checked
-              ? `I’ve got you logged, ${name}.`
-              : `I’m watching your week, ${name}.`}
-          </p>
-          <p className="mt-0.5 text-xs text-white/40">
-            {checked
-              ? 'Stack what you can — I’ll keep the lights on.'
-              : 'When you’re ready, check in with me and we’ll take the day.'}
-          </p>
+    <div className="space-y-5">
+      <section className="card relative overflow-hidden px-4 py-4">
+        <div
+          aria-hidden
+          className="pointer-events-none absolute -right-6 -top-8 h-28 w-28 rounded-full bg-sage/10 blur-2xl"
+        />
+        <div className="relative flex items-center gap-3.5">
+          <AutobotMascot mood={checked ? 'happy' : 'nudge'} size={42} />
+          <div className="min-w-0">
+            <p className="font-display text-[1.05rem] font-semibold tracking-[-0.01em] text-cream">
+              {checked ? `Logged. Nice work, ${name}.` : `I’m with you today, ${name}.`}
+            </p>
+            <p className="mt-1 text-[13px] leading-relaxed text-cream/40">
+              {checked
+                ? 'Knock out what you can — I’ll keep the lights on.'
+                : 'Check in when you’re ready. One tap, then we stack the day.'}
+            </p>
+          </div>
         </div>
-      </div>
+      </section>
+
       <WeekStrip />
       <QuotaPanel />
       <TaskList />

@@ -14,46 +14,60 @@ body,
 
 body {
   margin: 0;
-  background: #0c0d10;
+  font-family: Manrope, system-ui, sans-serif;
+  background-color: #0a0b0d;
   background-image:
-    radial-gradient(ellipse 80% 50% at 50% -20%, rgba(125, 206, 160, 0.06), transparent),
-    radial-gradient(ellipse 60% 40% at 100% 0%, rgba(232, 184, 109, 0.04), transparent);
+    radial-gradient(ellipse 90% 55% at 50% -25%, rgba(143, 188, 154, 0.09), transparent 55%),
+    radial-gradient(ellipse 50% 35% at 100% 0%, rgba(212, 165, 116, 0.05), transparent 50%),
+    linear-gradient(180deg, #0a0b0d 0%, #0c0e12 100%);
+  color: #f3efe6;
+  -webkit-font-smoothing: antialiased;
 }
 
-/* Soft scrollbar */
+::selection {
+  background: rgba(143, 188, 154, 0.35);
+  color: #0a0b0d;
+}
+
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
 ::-webkit-scrollbar-thumb {
-  background: #2a2e38;
+  background: #2a303c;
   border-radius: 999px;
 }
 
 @layer components {
   .card {
-    @apply rounded-2xl border border-ink-border/80 bg-ink-card shadow-card;
+    @apply rounded-2xl border border-ink-border/70 bg-ink-card/90 shadow-soft backdrop-blur-sm;
   }
   .btn-primary {
-    @apply inline-flex min-h-touch items-center justify-center gap-2 rounded-xl
-      bg-sage px-5 py-3 font-semibold text-ink transition
-      hover:brightness-110 active:scale-[0.98] disabled:opacity-50;
+    @apply inline-flex min-h-touch items-center justify-center gap-2 rounded-2xl
+      bg-cream px-5 py-3.5 text-[15px] font-semibold text-ink
+      transition hover:bg-white active:scale-[0.985] disabled:cursor-not-allowed disabled:opacity-45;
   }
   .btn-ghost {
-    @apply inline-flex min-h-touch items-center justify-center gap-2 rounded-xl
-      border border-ink-border bg-ink-raised/50 px-4 py-2.5 text-sm text-white/80
-      transition hover:bg-ink-raised hover:text-white active:scale-[0.98];
+    @apply inline-flex min-h-touch items-center justify-center gap-2 rounded-2xl
+      border border-ink-border/80 bg-transparent px-4 py-3 text-sm font-medium text-cream/75
+      transition hover:border-ink-border hover:bg-ink-raised/70 hover:text-cream
+      active:scale-[0.985];
   }
   .input {
-    @apply w-full rounded-xl border border-ink-border bg-ink-soft px-4 py-3
-      text-white placeholder:text-ink-muted outline-none transition
-      focus:border-sage/50 focus:ring-2 focus:ring-sage/20;
+    @apply w-full rounded-2xl border border-ink-border/80 bg-ink-soft px-4 py-3.5
+      text-[15px] text-cream placeholder:text-ink-muted/80 outline-none transition
+      focus:border-sage/45 focus:bg-ink-raised focus:ring-2 focus:ring-sage/15;
+  }
+  .label {
+    @apply mb-1.5 block text-[12px] font-medium text-cream/45;
+  }
+  .eyebrow {
+    @apply text-[11px] font-semibold uppercase tracking-[0.18em] text-sage/80;
   }
 }
 
-/* Checkbox strikethrough */
 .task-done .task-label {
   text-decoration: line-through;
-  text-decoration-color: rgba(125, 206, 160, 0.45);
-  color: rgba(255, 255, 255, 0.4);
+  text-decoration-color: rgba(143, 188, 154, 0.4);
+  color: rgba(243, 239, 230, 0.38);
 }
