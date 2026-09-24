@@ -33,7 +33,7 @@ export function WeekStrip() {
             onClick={() => setSelectedDate(date)}
             aria-pressed={selected}
             className={[
-              'relative flex min-h-[76px] min-w-[48px] flex-1 flex-col items-center justify-center gap-1 rounded-2xl border px-1.5 py-2 transition',
+              'relative flex min-h-[76px] min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-2xl border px-1 py-2 transition sm:px-1.5',
               selected
                 ? 'border-cream/20 bg-cream text-ink shadow-lift'
                 : 'border-ink-border/60 bg-ink-card/80 text-cream hover:border-ink-border hover:bg-ink-raised',
