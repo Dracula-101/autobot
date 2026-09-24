@@ -117,18 +117,17 @@ export function Layout() {
           </p>
         </header>
 
-        {/* Desktop/tablet page greeting strip */}
-        <header className="hidden items-end justify-between gap-4 px-6 pb-1 pt-6 md:flex lg:px-8">
-          <div>
-            <p className="text-[12px] font-medium text-cream/35">Autobot · Denver</p>
-            <h1 className="mt-0.5 font-display text-[1.45rem] font-semibold tracking-[-0.025em] text-cream">
-              Hey, {name}
-            </h1>
-          </div>
-          <p className="pb-1 text-[12px] text-ink-muted">Hunt · LC · Move</p>
-        </header>
-
-        <div className="shell flex-1 pb-28 pt-3 md:pb-10 md:pt-4">
+        {/* Greeting shares .shell so wide screens stay aligned with the 1520px column */}
+        <div className="shell flex-1 pb-[calc(8.25rem+env(safe-area-inset-bottom))] pt-3 md:pb-10 md:pt-6">
+          <header className="mb-4 hidden items-end justify-between gap-4 md:flex">
+            <div>
+              <p className="text-[12px] font-medium text-cream/35">Autobot · Denver</p>
+              <h1 className="mt-0.5 font-display text-[1.45rem] font-semibold tracking-[-0.025em] text-cream">
+                Hey, {name}
+              </h1>
+            </div>
+            <p className="pb-1 text-[12px] text-ink-muted">Hunt · LC · Move</p>
+          </header>
           <ConnectBanner />
           <main className="animate-fade-up">
             <Outlet />
