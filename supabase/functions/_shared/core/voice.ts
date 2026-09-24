@@ -1,9 +1,10 @@
 // Autobot's words. One place for the in-app speech bubble and push copy, so
 // the robot sounds like the same friend everywhere.
 
-import type { ClassBlock, DayType, Mission, Moment, Settings, Voice } from './types.ts'
+import type { Cell, ClassBlock, DayType, Energy, Mission, Moment, Settings, Voice } from './types.ts'
 import { formatClock, formatDuration, hhmmToDayMinutes } from './time.ts'
 import { hash128 } from './ids.ts'
+import { CELL_LABEL, CELL_NUDGE, CELLS, cellOf, type CellState } from './charge.ts'
 
 export type Mood =
   | 'idle'
@@ -78,6 +79,9 @@ export interface SpeechContext {
   classes: ClassBlock[]
   tomorrowClasses: ClassBlock[]
   weather?: { code: number; tempF: number } | null
+  /** Today's battery check-in (null = not asked yet) */
+  energy?: Energy | null
+  cells?: Record<Cell, CellState>
 }
 
 export interface Speech {
@@ -154,36 +158,54 @@ export function speak(ctx: SpeechContext): Speech {
     }
   }
 
+  if (ctx.energy == null && (ctx.moment === 'wake' || ctx.moment === 'out') && nowMins < wake + 300) {
+    return { mood: 'happy', text: `Morning, ${name}. Before I size today — how’s your battery?` }
+  }
+
+  const cells = ctx.cells
+  const allFull = cells ? CELLS.every((c) => cells[c].level >= 0.9) : false
   if (ctx.total > 0 && ctx.done === ctx.total) {
     return {
       mood: 'proud',
-      text: pick(seed, [
-        'Board’s clear. That’s a real day — be proud of it.',
-        'Everything’s done. Rest counts too — go do nothing, guilt-free.',
-        'All done. This is what locking in looks like.',
-      ]),
+      text: allFull
+        ? 'All three cells full. This is what locking in feels like.'
+        : pick(seed, [
+            'Board’s clear. That’s a real day — be proud of it.',
+            'Everything’s done. Rest counts too — go do nothing, guilt-free.',
+          ]),
     }
   }
 
-  if (ctx.type !== 'class' && ctx.done === 0 && ctx.total > 0 && nowMins > wake + 180 && next) {
+  const drained = cells ? CELLS.find((c) => cells[c].status === 'drained') : undefined
+  if (ctx.type !== 'class' && ctx.done === 0 && ctx.total > 0 && nowMins > wake + 180 && next && ctx.energy !== 'low') {
     return {
       mood: 'worried',
-      text: fill(pick(seed, NUDGE_COPY.idle[settings.voice]), {
-        hours: formatDuration(nowMins - wake),
-        next: ctx.nextUp!.title,
-      }),
+      text: drained
+        ? `My ${CELL_LABEL[drained]} cell is drained — ${CELL_NUDGE[drained]}. Start with: ${next}.`
+        : fill(pick(seed, NUDGE_COPY.idle[settings.voice]), {
+            hours: formatDuration(nowMins - wake),
+            next: ctx.nextUp!.title,
+          }),
+    }
+  }
+
+  const nextCell = ctx.nextUp ? cellOf(ctx.nextUp.target_key) : null
+  if (ctx.energy === 'low' && next) {
+    return {
+      mood: 'happy',
+      text: `Low battery day — that’s allowed. ${upper(next)}${nextCell ? ` keeps your ${CELL_LABEL[nextCell]} cell alive` : ' is enough'}.`,
     }
   }
 
   if (ctx.done > 0 && next) {
     return {
       mood: 'happy',
-      text: `${ctx.done}/${ctx.total} done. ${pick(seed, [
-        'Momentum’s real.',
-        'Keep it rolling.',
-        'That’s the stuff that gets interviews.',
-      ])} Next: ${next}.`,
+      text: `${pick(seed, ['Momentum’s real.', 'Keep it rolling.', 'That’s the stuff that gets interviews.'])} Next: ${next}.`,
     }
+  }
+
+  if (ctx.energy === 'high' && next) {
+    return { mood: 'happy', text: `Charged day — I added bonus blocks. Cash it in while you’re sharp: ${next}.` }
   }
 
   const dayLine =

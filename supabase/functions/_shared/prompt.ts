@@ -1,5 +1,9 @@
 import type { UserState } from './state.ts'
 import {
+  CELL_LABEL,
+  CELLS,
+  STATUS_LABEL,
+  cellStates,
   classesOn,
   classPhase,
   currentMoment,
@@ -56,8 +60,9 @@ export function buildContext(st: UserState): string {
   })
   const out: string[] = []
 
+  const energy = st.checkin?.energy ?? null
   out.push(
-    `<today date="${today}" weekday="${DAY_NAMES[weekdayOf(today)]}" type="${DAY_TYPE_LABEL[type]}" now="${formatClock(nowM)}" moment="${momentLabel(moment, type)}" opened_app_at="${wake != null ? formatClock(wake) : 'not yet'}">`,
+    `<today date="${today}" weekday="${DAY_NAMES[weekdayOf(today)]}" type="${DAY_TYPE_LABEL[type]}" now="${formatClock(nowM)}" moment="${momentLabel(moment, type)}" opened_app_at="${wake != null ? formatClock(wake) : 'not yet'}" battery="${energy ?? 'not asked yet'}">`,
   )
   if (lectures.length) {
     out.push(
@@ -74,7 +79,7 @@ export function buildContext(st: UserState): string {
   const progress = missionProgress(todays, st.logs, today)
   out.push(todays.length ? 'Missions:' : 'Missions: none planned yet')
   for (const m of todays.sort((a, b) => a.sort - b.sort)) {
-    const p = m.target_key ? ` (${progress.get(m.id) ?? 0}/${m.amount} ${m.target_key})` : ''
+    const p = m.target_key && (progress.get(m.id) ?? 0) > 0 && m.status !== 'done' ? ' (already started via logs)' : ''
     out.push(`- ${ref('m', m.id)} ${m.status} · ${momentLabel(m.moment, type)} · ${m.size} · ${m.area} · ${m.title}${p}`)
   }
   const tomorrow = live(st.missions).filter((m) => m.day === addDays(today, 1))
@@ -95,11 +100,21 @@ export function buildContext(st: UserState): string {
   }
   out.push('</today>')
 
+  const cells = cellStates(st.logs, today)
   const totals = weekTotals(st.logs, today)
-  const left = weekDates(weekStart(today)).filter((d) => d >= today).length
+  const week = weekDates(weekStart(today))
+  out.push('<power_cells note="No quotas. Anything logged charges a cell; cells drain ~28%/day; one action a day keeps a cell full.">')
+  for (const c of CELLS) {
+    const cell = cells[c]
+    out.push(
+      `- ${CELL_LABEL[c]}: ${STATUS_LABEL[cell.status]} · ${cell.today} today · active ${cell.week.filter(Boolean).length} of ${week.filter((d) => d <= today).length} days this week · streak ${cell.streak} · last active ${cell.lastActive ? relativeDay(cell.lastActive, today) : 'never'}`,
+    )
+  }
   out.push(
-    `<week start="${weekStart(today)}" days_left="${left}">referrals ${totals.referral}/${s.targets.referral}, applications ${totals.application}/${s.targets.application}, LeetCode ${totals.leetcode}/${s.targets.leetcode}, workouts ${totals.workout}/${s.targets.workout}. Sleep target: bed ${s.sleep.bed}, up ${s.sleep.wake}. Racket on ${s.sportDays.join(' or ')}.</week>`,
+    `This week so far (context only, never a target): ${totals.referral} referral asks, ${totals.followup} follow-ups, ${totals.application} applications, ${totals.leetcode} LeetCode attempts, ${totals.workout} workouts.`,
   )
+  out.push(`Sleep window: bed ${s.sleep.bed}, up ${s.sleep.wake}. Racket on ${s.sportDays.join(' or ')}.`)
+  out.push('</power_cells>')
 
   out.push('<memories>')
   const memories = live(st.memories)
@@ -151,6 +166,8 @@ What matters to him, in order: landing a new-grad software role at a company tha
 
 Ground rules:
 - When he reports doing something ("sent 2 referral emails", "did two sum", "took my pills", "applied to Stripe") or asks for a change, use tools, then say what changed in a few words. Never claim a change you didn't make.
+- No quotas, ever. Progress lives in three power cells (Hunt, Prep, Body): any amount charges them, big days carry over, light days are allowed. Never frame progress as "x/y", "N more to go", or a daily number. Celebrate what he did; when a cell runs low, suggest one small, concrete step.
+- When he tells you how he's feeling or his energy for the day, set it with set_energy — the plan resizes itself (low shrinks it to what keeps the neediest cells alive; high adds bonus blocks).
 - When he shares something durable about himself, save it with remember: third person, one fact each, no trivia or passing moods. Fix or forget memories that became wrong.
 - Plans are clock-free: missions sit in moments (after waking, out of the room, evening, night-owl hours, before bed). Only classes have times.
 - Protect sleep. He's a night owl (bed ~${s.sleep.bed}, up ~${s.sleep.wake}). If he wants to cut sleep, push back and suggest a consistent window: short sleep worsens hair shedding, fat loss and focus.

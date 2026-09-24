@@ -21,6 +21,8 @@ describe.skipIf(!path)('rows written by the app match the live schema', () => {
     store.upsert('routines', seedRoutines(store.userId))
     a.checkIn()
     a.ensurePlan()
+    a.setEnergy('low')
+    a.setEnergy('high')
     const mission = store.rows<Mission>('missions').find((m) => m.target_key)!
     a.toggleMission(mission)()
     a.toggleMission(mission)

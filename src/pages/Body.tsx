@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { Flame, MessageCircle, Moon, Sun } from 'lucide-react'
 import {
   addDays,
+  cellStates,
   DAY_KEYS,
   formatClock,
   hhmmToDayMinutes,
@@ -13,7 +14,6 @@ import {
   stackItems,
   weekDates,
   weekStart,
-  weekTotals,
   type Checkin,
   type LogEntry,
   type Routine,
@@ -25,7 +25,8 @@ import { PageHeader } from '../components/Shell'
 import { PerWeekChips, StackCard } from '../components/TodayCards'
 import { useToast } from '../components/Toast'
 import { cheer } from '../components/Autobot'
-import { Progress, SectionTitle } from '../components/ui'
+import { SectionTitle } from '../components/ui'
+import { CellTile } from '../components/Cells'
 
 const WORKOUTS = [
   { note: 'racket', label: 'Squash / badminton', emoji: '🏸' },
@@ -69,7 +70,7 @@ export function BodyPage() {
       doneToday: live(routineLogs).some((l) => l.routine_id === routine.id && l.day === today),
     }))
   const streak = useMemo(() => stackStreak(routines, routineLogs, today), [routines, routineLogs, today])
-  const workouts = weekTotals(logs, today).workout
+  const body = cellStates(logs, today, checkins.map((c) => c.date).sort()[0]).body
   const [bed, setBed] = useState(settings.sleep.bed)
   const [wake, setWake] = useState(settings.sleep.wake)
 
@@ -102,13 +103,10 @@ export function BodyPage() {
       </div>
 
       <section className="mt-6">
-        <SectionTitle
-          title="Workouts"
-          hint={`${workouts}/${settings.targets.workout} this week · racket counts`}
-        />
-        <div className="card p-4">
-          <Progress value={workouts} max={settings.targets.workout} className="bg-a-body" />
-          <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
+        <SectionTitle title="Move" hint="Squash, gym, a run, or a long walk — it all charges the Body cell" />
+        <CellTile state={body} blurb="Any movement counts. Racket days charge it too." />
+        <div className="card mt-3 p-4">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
             {WORKOUTS.map((w) => (
               <button
                 key={w.note}

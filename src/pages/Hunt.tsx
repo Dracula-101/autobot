@@ -2,10 +2,11 @@ import { useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { ExternalLink, MapPin, Plus, Star, Users } from 'lucide-react'
 import {
+  cellStates,
   live,
   logicalDay,
   relativeDay,
-  weekTotals,
+  type Checkin,
   type Contact,
   type ContactStatus,
   type Job,
@@ -17,6 +18,7 @@ import { COMPANIES, initials } from '../lib/companies'
 import { PageHeader } from '../components/Shell'
 import { Avatar, Empty, Segmented, SectionTitle } from '../components/ui'
 import { CONTACT_STATUS, ContactSheet, JOB_STATUS, JobSheet } from '../components/HuntSheets'
+import { CellTile } from '../components/Cells'
 
 type Tab = 'people' | 'jobs' | 'companies'
 
@@ -48,8 +50,9 @@ export function HuntPage() {
   const contacts = live(useRows<Contact>('contacts'))
   const jobs = live(useRows<Job>('jobs'))
   const logs = useRows<LogEntry>('logs')
+  const checkins = useRows<Checkin>('day_checkins')
   const today = logicalDay(new Date(), settings.rolloverHour)
-  const totals = weekTotals(logs, today)
+  const hunt = cellStates(logs, today, checkins.map((c) => c.date).sort()[0]).hunt
 
   const [contactSheet, setContactSheet] = useState<{ contact?: Contact | null; prefill?: Partial<Contact> } | null>(null)
   const [jobSheet, setJobSheet] = useState<{ job?: Job | null } | null>(null)
@@ -121,11 +124,12 @@ export function HuntPage() {
         }
       />
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <Stat label="Referral asks" value={`${totals.referral}/${settings.targets.referral}`} sub="this week" />
-        <Stat label="Applications" value={`${totals.application}/${settings.targets.application}`} sub="this week" />
-        <Stat label="Replies" value={replies} sub="all time" />
-        <Stat label="Interviews" value={interviews} sub="in play" />
+      <div className="grid gap-3 sm:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+        <CellTile state={hunt} blurb="Every message, follow-up, and application charges it — one a day keeps it full." />
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-1">
+          <Stat label="Replies" value={replies} sub="people who wrote back" />
+          <Stat label="Interviews" value={interviews} sub="in play" />
+        </div>
       </div>
 
       <Segmented

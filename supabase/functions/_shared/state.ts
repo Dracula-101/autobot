@@ -55,6 +55,8 @@ export async function loadState(
   const settings = withDefaults(profile.data?.settings as Partial<Settings> | null)
   const today = logicalDay(now, settings.rolloverHour)
   const since = addDays(weekStart(today), -1)
+  // Power cells drain over days, so charge needs a few weeks of logs.
+  const logsSince = addDays(today, -28)
   const mine = (table: string) => db.from(table).select('*').eq('user_id', userId).is('deleted_at', null)
 
   const [memories, missions, routines, routineLogs, logs, contacts, jobs, problems, checkin, history] =
@@ -63,7 +65,7 @@ export async function loadState(
       mine('missions').gte('day', today).lte('day', addDays(today, 1)),
       mine('routines'),
       mine('routine_logs').gte('day', since),
-      mine('logs').gte('day', since),
+      mine('logs').gte('day', logsSince),
       mine('contacts').order('updated_at', { ascending: false }).limit(200),
       mine('jobs').order('updated_at', { ascending: false }).limit(200),
       mine('problems').order('updated_at', { ascending: false }).limit(400),

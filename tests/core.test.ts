@@ -10,7 +10,9 @@ import {
   logicalDay,
   planDay,
   seedRoutines,
-  shareForToday,
+  cellStates,
+  diffPlan,
+  dayGain,
   skyPhase,
   speak,
   stableId,
@@ -96,35 +98,109 @@ describe('schedule', () => {
   })
 })
 
-describe('planner', () => {
-  const input = { userId: USER, date: '2026-09-23', settings: S, logs: [] as LogEntry[], reviewsDue: 0 }
+describe('power cells', () => {
+  const day = (d: string, kind: LogEntry['kind'], amount = 1): LogEntry => ({ id: `${d}${kind}${amount}`, day: d, kind, amount })
 
-  it('fills a free day with a leave-the-room start and a real work block', () => {
-    const plan = planDay(input)
-    const keys = plan.map((m) => m.key)
-    expect(keys).toContain('plan:leave-room')
-    expect(keys).toContain('plan:referral')
-    expect(keys).toContain('plan:application')
-    expect(keys).toContain('plan:coursework')
+  it('fills a cell with one action a day and never needs a quota', () => {
+    const logs = ['2026-09-17', '2026-09-18', '2026-09-19', '2026-09-20', '2026-09-21', '2026-09-22', '2026-09-23'].map((d) =>
+      day(d, 'referral'),
+    )
+    const cells = cellStates(logs, '2026-09-23')
+    expect(cells.hunt.status).toBe('full')
+    expect(cells.hunt.streak).toBe(7)
+    expect(cells.prep.status).not.toBe('full')
+  })
+
+  it('lets a big day carry a light one', () => {
+    const big = cellStates([day('2026-09-22', 'leetcode', 5)], '2026-09-23', '2026-09-22')
+    const small = cellStates([day('2026-09-22', 'leetcode', 1)], '2026-09-23', '2026-09-22')
+    expect(big.prep.level).toBeGreaterThan(small.prep.level)
+    expect(big.prep.status === 'good' || big.prep.status === 'full').toBe(true)
+  })
+
+  it('drains gently instead of resetting', () => {
+    const logs = ['2026-09-15', '2026-09-16', '2026-09-17', '2026-09-18', '2026-09-19'].map((d) => day(d, 'workout', 2))
+    const afterOneDayOff = cellStates(logs, '2026-09-20').body.level
+    const afterFourDaysOff = cellStates(logs, '2026-09-23').body.level
+    expect(afterOneDayOff).toBeGreaterThan(0.9)
+    expect(afterFourDaysOff).toBeLessThan(afterOneDayOff)
+    expect(afterFourDaysOff).toBeGreaterThan(0.2)
+  })
+
+  it('rewards more work with diminishing returns', () => {
+    expect(dayGain(0)).toBe(0)
+    expect(dayGain(2)).toBeGreaterThan(dayGain(1))
+    expect(dayGain(10) - dayGain(5)).toBeLessThan(dayGain(2) - dayGain(1))
+  })
+
+  it('counts follow-ups and applications toward the Hunt cell', () => {
+    const cells = cellStates([day('2026-09-23', 'followup'), day('2026-09-23', 'application')], '2026-09-23')
+    expect(cells.hunt.today).toBe(2)
+    expect(cells.hunt.week[2]).toBe(true)
+  })
+})
+
+describe('planner', () => {
+  const input = { userId: USER, date: '2026-09-23', settings: S, logs: [] as LogEntry[] }
+  const context = {
+    nextContact: { name: 'Priya', company: 'Google' },
+    nextJob: { company: 'Stripe', title: 'SWE, New Grad' },
+    nextProblem: { title: 'Contains Duplicate', pattern: 'Arrays & Hashing' },
+  }
+
+  it('plans concrete sessions with no numeric quotas', () => {
+    const plan = planDay({ ...input, context })
+    const titles = plan.map((m) => m.title)
+    expect(titles).toContain('Reach out to Priya at Google')
+    expect(titles).toContain('Apply: Stripe — SWE, New Grad')
+    expect(titles).toContain('LeetCode: Contains Duplicate')
     expect(plan.find((m) => m.key === 'plan:leave-room')?.moment).toBe('wake')
-    for (const m of plan) expect(m.amount).toBeLessThanOrEqual(5)
+    for (const m of plan) {
+      expect(m.amount).toBe(1)
+      expect(m.title).not.toMatch(/\d+ (referral|role|problem|message)s?/)
+    }
+  })
+
+  it('shrinks a low-battery day to the neediest cells and grows a charged one', () => {
+    const normal = planDay({ ...input, context }).length
+    const low = planDay({ ...input, context, energy: 'low' })
+    const high = planDay({ ...input, context, energy: 'high' })
+    expect(low.length).toBeLessThan(normal)
+    expect(high.length).toBeGreaterThan(normal)
+    expect(low.find((m) => m.key === 'plan:hunt')?.title).toBe('One message: Priya at Google')
+    expect(low.some((m) => m.key === 'plan:apply')).toBe(false)
+    expect(high.some((m) => m.key?.startsWith('plan:bonus'))).toBe(true)
+  })
+
+  it('puts the neediest cell first', () => {
+    const logs: LogEntry[] = [{ id: 'l', day: '2026-09-22', kind: 'referral', amount: 4 }]
+    const plan = planDay({ ...input, logs, context })
+    const out = plan.filter((m) => m.moment === 'out' && m.target_key).sort((a, b) => a.sort - b.sort)
+    expect(out[0].target_key).toBe('leetcode')
   })
 
   it('is deterministic so devices never duplicate a plan', () => {
     expect(planDay(input).map((m) => m.id)).toEqual(planDay(input).map((m) => m.id))
     expect(stableId('x')).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-5[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/)
+    expect(planDay({ ...input, date: '2026-09-27' }).map((m) => m.key)).toEqual(
+      expect.arrayContaining(['plan:racket', 'plan:weekly-review']),
+    )
   })
 
-  it('does not plan work that the week already covered', () => {
-    const logs: LogEntry[] = [{ id: 'a', day: '2026-09-21', kind: 'referral', amount: 8 }]
-    expect(shareForToday({ ...input, logs }, 'referral')).toBe(0)
-    expect(planDay({ ...input, logs }).some((m) => m.key === 'plan:referral')).toBe(false)
-  })
-
-  it('gives the last day of the week everything still open (capped)', () => {
-    const sunday = { ...input, date: '2026-09-27' }
-    expect(shareForToday(sunday, 'referral')).toBe(4)
-    expect(planDay(sunday).map((m) => m.key)).toEqual(expect.arrayContaining(['plan:racket', 'plan:weekly-review']))
+  it('reconciles a battery change without touching started, finished, or deleted work', () => {
+    const normal = planDay({ ...input, context })
+    const started = { ...normal.find((m) => m.key === 'plan:apply')!, status: 'doing' as const }
+    const deleted = { ...normal.find((m) => m.key === 'plan:body')!, deleted_at: '2026-09-23T18:00:00Z' }
+    const existing = normal.map((m) => (m.id === started.id ? started : m.id === deleted.id ? deleted : m))
+    const low = planDay({ ...input, context, energy: 'low' })
+    const diff = diffPlan(existing, '2026-09-23', low)
+    expect(diff.remove).not.toContain(started.id)
+    expect(diff.add.map((m) => m.id)).not.toContain(deleted.id)
+    expect(diff.update.find((u) => u.id === low.find((m) => m.key === 'plan:hunt')!.id)?.patch.title).toBe(
+      'One message: Priya at Google',
+    )
+    const back = diffPlan([...existing, ...diff.add], '2026-09-23', normal)
+    expect(back.add.map((m) => m.id)).not.toContain(deleted.id)
   })
 })
 
@@ -174,7 +250,7 @@ describe('reminders', () => {
   })
 
   it('nudges an idle free day, but not once something is done', () => {
-    const missions: Mission[] = planDay({ userId: USER, date: '2026-09-23', settings: S, logs: [], reviewsDue: 0 })
+    const missions: Mission[] = planDay({ userId: USER, date: '2026-09-23', settings: S, logs: [] })
     const checkin: Checkin = { id: 'c', date: '2026-09-23', checked_in_at: at('2026-09-23', '10:30').toISOString() }
     const now = at('2026-09-23', '15:00')
     expect(keys(base(now, { missions, checkin }))).toContain('nudge:idle:2026-09-23')

@@ -3,10 +3,11 @@
 
 import {
   addDays,
+  diffPlan,
   logicalDay,
   missionProgress,
+  planContext,
   planDay,
-  reviewsDue,
   roadmapProblem,
   scheduleReview,
   slugify,
@@ -15,6 +16,7 @@ import {
   type Checkin,
   type Contact,
   type ContactStatus,
+  type Energy,
   type Job,
   type JobStatus,
   type LogEntry,
@@ -76,6 +78,28 @@ export function createActions(store: SyncStore, settings: Settings) {
   const missionLogs = (missionId: string) =>
     store.rows<LogEntry>('logs').filter((l) => l.ref_id === missionId)
 
+  const checkinId = (date: string) => stableId(`${store.userId}:checkin:${date}`)
+
+  /** A plan for `date` from everything the store knows right now. */
+  const freshPlan = (date: string, energy: Energy | null) =>
+    planDay({
+      userId: store.userId,
+      date,
+      settings,
+      logs: store.rows<LogEntry>('logs'),
+      energy,
+      since: store
+        .rows<Checkin>('day_checkins')
+        .map((c) => c.date)
+        .sort()[0],
+      context: planContext({
+        date,
+        problems: store.rows<Problem>('problems'),
+        contacts: store.rows<Contact>('contacts'),
+        jobs: store.rows<Job>('jobs'),
+      }),
+    })
+
   const actions = {
     // ── day
 
@@ -83,7 +107,7 @@ export function createActions(store: SyncStore, settings: Settings) {
       const date = today()
       store.upsert(
         'day_checkins',
-        { id: stableId(`${store.userId}:checkin:${date}`), date, checked_in_at: nowIso(), note: 'opened app' } as Checkin as SyncRow,
+        { id: checkinId(date), date, checked_in_at: nowIso(), note: 'opened app' } as Checkin as SyncRow,
         { ignoreDuplicates: true },
       )
     },
@@ -92,16 +116,37 @@ export function createActions(store: SyncStore, settings: Settings) {
       const date = today()
       // Deleted plan rows count too: never resurrect a mission he removed.
       if (store.all<Mission>('missions').some((m) => m.day === date && m.source === 'plan')) return
-      const plan = planDay({
-        userId: store.userId,
-        date,
-        settings,
-        logs: store.rows<LogEntry>('logs'),
-        reviewsDue: reviewsDue(store.rows<Problem>('problems'), date).length,
-      })
+      const energy = store.get<Checkin>('day_checkins', checkinId(date))?.energy ?? null
+      const plan = freshPlan(date, energy)
       if (!plan.length) return
       store.upsert('missions', plan as unknown as SyncRow[], { ignoreDuplicates: true })
-      log(`Planned ${plan.length} missions for today`, 'plan.generate', undefined, { day: date }, 'autobot')
+      log(`Planned ${plan.length} sessions for today`, 'plan.generate', undefined, { day: date }, 'autobot')
+    },
+
+    /** Today's battery check-in: resizes the plan without touching started or finished work. */
+    setEnergy(energy: Energy): Undo {
+      const date = today()
+      const id = checkinId(date)
+      const existing = store.get<Checkin>('day_checkins', id)
+      const undoCheckin = snapshot(store, 'day_checkins', [id])
+      store.upsert('day_checkins', {
+        ...(existing ?? { id, date, checked_in_at: nowIso(), note: 'battery check-in' }),
+        energy,
+      } as Checkin as SyncRow)
+
+      const all = store.all<Mission>('missions')
+      const diff = diffPlan(all, date, freshPlan(date, energy))
+      const touched = [...diff.add.map((m) => m.id), ...diff.update.map((u) => u.id), ...diff.remove]
+      const undoMissions = snapshot(store, 'missions', touched)
+      if (diff.add.length) store.upsert('missions', diff.add as unknown as SyncRow[], { ignoreDuplicates: true })
+      for (const u of diff.update) store.patch<Mission>('missions', u.id, u.patch)
+      for (const id of diff.remove) store.remove('missions', id)
+      const word = { low: 'Low', normal: 'Normal', high: 'Charged' }[energy]
+      log(`Battery today: ${word}`, 'energy.set', undefined, { energy, added: diff.add.length, removed: diff.remove.length })
+      return () => {
+        undoMissions()
+        undoCheckin()
+      }
     },
 
     // ── missions
@@ -236,6 +281,7 @@ export function createActions(store: SyncStore, settings: Settings) {
       const label: Record<LogKind, string> = {
         referral: 'referral ask',
         application: 'application',
+        followup: 'follow-up',
         leetcode: 'LeetCode problem',
         workout: note === 'racket' ? 'racket session' : 'workout',
         scalp: 'scalp wash',
@@ -269,13 +315,14 @@ export function createActions(store: SyncStore, settings: Settings) {
         notes: [existing?.notes, input.notes?.trim()].filter(Boolean).join('\n'),
       }
       store.upsert('problems', problem as unknown as SyncRow)
-      const logId = input.result === 'stuck' ? null : addLog({ kind: 'leetcode', amount: 1, ref_id: id, note: null })
+      // Getting stuck is still effort — it charges the Prep cell too.
+      const logId = addLog({ kind: 'leetcode', amount: 1, ref_id: id, note: null })
       log(`LeetCode: ${problem.title} (${input.result})`, 'problem.log', { table: 'problems', id })
       return {
         problem,
         undo: () => {
           undoProblem()
-          if (logId) store.remove('logs', logId)
+          store.remove('logs', logId)
         },
       }
     },
@@ -335,8 +382,12 @@ export function createActions(store: SyncStore, settings: Settings) {
     bumpFollowUp(c: Contact, days = 5): Undo {
       const undo = snapshot(store, 'contacts', [c.id])
       store.patch<Contact>('contacts', c.id, { last_contact_at: nowIso(), follow_up_on: addDays(today(), days) })
+      const logId = addLog({ kind: 'followup', amount: 1, ref_id: c.id, note: null })
       log(`Followed up with ${c.name}`, 'contact.followup', { table: 'contacts', id: c.id })
-      return undo
+      return () => {
+        undo()
+        store.remove('logs', logId)
+      }
     },
 
     deleteContact(c: Contact): Undo {

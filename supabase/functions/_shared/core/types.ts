@@ -5,8 +5,13 @@ export type Size = 'S' | 'M' | 'L'
 /** Clock-free parts of a day. Only classes carry real times. */
 export type Moment = 'wake' | 'out' | 'evening' | 'night' | 'bed' | 'anytime'
 export type MissionStatus = 'todo' | 'doing' | 'done' | 'skipped'
-export type TargetKey = 'referral' | 'application' | 'leetcode' | 'workout'
+/** What a mission's progress is measured in (the specific kind of activity) */
+export type TargetKey = 'referral' | 'application' | 'followup' | 'leetcode' | 'workout'
 export type LogKind = TargetKey | 'scalp' | 'other'
+/** Autobot's power cells — every logged action charges one. No quotas. */
+export type Cell = 'hunt' | 'prep' | 'body'
+/** The daily battery check-in that sizes the plan */
+export type Energy = 'low' | 'normal' | 'high'
 export type DayType = 'class' | 'free' | 'sport'
 export type Voice = 'firm' | 'gentle' | 'strict'
 export type ThemePref = 'auto' | 'day' | 'night'
@@ -52,7 +57,6 @@ export interface Settings {
   sleep: { bed: string; wake: string }
   /** Racket happens on one of these (partner's choice) */
   sportDays: DayKey[]
-  targets: Record<TargetKey, number>
   classes: ClassBlock[]
   notify: NotifyPrefs
   /** Companies he's actively going after (starred on the Hunt page) */
@@ -122,6 +126,7 @@ export interface Checkin extends Row {
   date: string
   checked_in_at: string
   note?: string | null
+  energy?: Energy | null
 }
 
 export interface Memory extends Row {

@@ -12,6 +12,9 @@ import {
   formatDate,
   live,
   missionProgress,
+  planContext,
+  planDay,
+  diffPlan,
   relativeDay,
   roadmapProblem,
   routinesFor,
@@ -23,6 +26,7 @@ import {
   type ChatAction,
   type Contact,
   type ContactStatus,
+  type Energy,
   type Job,
   type JobStatus,
   type LogKind,
@@ -40,7 +44,8 @@ import {
 const MEMORY_CATEGORIES: MemoryCategory[] = ['about', 'goal', 'job', 'prep', 'health', 'schedule', 'habit', 'preference']
 const AREAS: Area[] = ['hunt', 'prep', 'body', 'class', 'life']
 const MOMENTS: Moment[] = ['wake', 'out', 'evening', 'night', 'bed', 'anytime']
-const TARGETS: TargetKey[] = ['referral', 'application', 'leetcode', 'workout']
+const TARGETS: TargetKey[] = ['referral', 'application', 'followup', 'leetcode', 'workout']
+const LOG_KINDS: LogKind[] = ['referral', 'application', 'followup', 'leetcode', 'workout', 'scalp', 'other']
 const CONTACT_STATUSES: ContactStatus[] = ['to_contact', 'messaged', 'replied', 'referred', 'closed']
 const JOB_STATUSES: JobStatus[] = ['saved', 'applied', 'oa', 'interview', 'offer', 'rejected', 'closed']
 
@@ -85,8 +90,7 @@ export const TOOL_DECLARATIONS: FunctionDeclaration[] = [
         size: oneOf(['S', 'M', 'L'], 'S ≈ quick, M ≈ a focused block, L ≈ a big block'),
         moment: oneOf(MOMENTS),
         when: { type: 'string', description: '"today", "tomorrow", or YYYY-MM-DD' },
-        target: oneOf(TARGETS, 'Weekly target this counts toward, if any'),
-        amount: { type: 'integer', description: 'How many units toward the target (e.g. 2 referrals)' },
+        target: oneOf(TARGETS, 'The kind of logged activity that completes it (and charges its cell), if any'),
       },
       required: ['title', 'area'],
     },
@@ -109,11 +113,11 @@ export const TOOL_DECLARATIONS: FunctionDeclaration[] = [
   {
     name: 'log_progress',
     description:
-      'Record countable progress toward weekly targets when it isn’t covered by log_problem/save_contact/save_job (e.g. "did a workout", "sent 3 referral DMs").',
+      'Log something he did that isn’t covered by log_problem/save_contact/save_job (e.g. "did a workout", "sent 3 referral DMs"). Charges the matching power cell — no targets involved.',
     parameters: {
       type: 'object',
       properties: {
-        kind: oneOf(['referral', 'application', 'leetcode', 'workout', 'scalp', 'other']),
+        kind: oneOf(LOG_KINDS),
         amount: int,
         note: { type: 'string', description: 'Use "racket" for squash/badminton sessions' },
       },
@@ -122,7 +126,7 @@ export const TOOL_DECLARATIONS: FunctionDeclaration[] = [
   },
   {
     name: 'log_problem',
-    description: 'Log a LeetCode attempt. Schedules spaced review automatically and counts toward the weekly target.',
+    description: 'Log a LeetCode attempt (even a stuck one counts as effort). Schedules spaced review and charges the Prep cell.',
     parameters: {
       type: 'object',
       properties: {
@@ -138,7 +142,7 @@ export const TOOL_DECLARATIONS: FunctionDeclaration[] = [
   {
     name: 'save_contact',
     description:
-      'Add or update a person in the referral pipeline. Setting status to "messaged" logs a referral ask and schedules a follow-up.',
+      'Add or update a person in the referral pipeline. Setting status to "messaged" logs a referral ask and schedules a follow-up; followed_up=true logs a follow-up nudge.',
     parameters: {
       type: 'object',
       properties: {
@@ -149,6 +153,7 @@ export const TOOL_DECLARATIONS: FunctionDeclaration[] = [
         channel: oneOf(['email', 'linkedin', 'other']),
         handle: { type: 'string', description: 'Email address or LinkedIn URL' },
         status: oneOf(CONTACT_STATUSES),
+        followed_up: { type: 'boolean', description: 'He just followed up with them' },
         follow_up_days: int,
         notes: str,
       },
@@ -184,8 +189,14 @@ export const TOOL_DECLARATIONS: FunctionDeclaration[] = [
   {
     name: 'update_settings',
     description:
-      'Change a setting. Keys: sleep.bed, sleep.wake (HH:MM), targets.referral|application|leetcode|workout (per week), voice (firm|gentle|strict), notify.routines|classes|bedtime|followups|nudges|weekly (true/false), notify.classLead (minutes).',
+      'Change a setting. Keys: sleep.bed, sleep.wake (HH:MM), voice (firm|gentle|strict), notify.routines|classes|bedtime|followups|nudges|weekly (true/false), notify.classLead (minutes).',
     parameters: { type: 'object', properties: { key: str, value: str }, required: ['key', 'value'] },
+  },
+  {
+    name: 'set_energy',
+    description:
+      'Set today’s battery when he says how he feels ("wiped", "decent", "fired up"). The day’s plan resizes: low keeps only what the neediest cells need, high adds bonus blocks.',
+    parameters: { type: 'object', properties: { level: oneOf(['low', 'normal', 'high']) }, required: ['level'] },
   },
 ]
 
@@ -234,6 +245,8 @@ export class Toolbox {
           return await this.markRoutine(args)
         case 'update_settings':
           return await this.updateSettings(args)
+        case 'set_energy':
+          return await this.setEnergy(args)
         default:
           return { ok: false, error: `Unknown tool ${call.name}` }
       }
@@ -366,7 +379,7 @@ export class Toolbox {
       moment: pickEnum(a.moment, MOMENTS, 'anytime'),
       status: 'todo',
       target_key: target,
-      amount: target ? Math.max(1, Math.min(10, Number(a.amount) || 1)) : 1,
+      amount: 1,
       note: null,
       sort: 1000 + this.state.missions.length,
       source: 'autobot',
@@ -445,13 +458,14 @@ export class Toolbox {
   // ── progress
 
   private async logProgress(a: Args): Promise<Result> {
-    const kind = pickEnum(a.kind, ['referral', 'application', 'leetcode', 'workout', 'scalp', 'other'] as LogKind[], 'other')
+    const kind = pickEnum(a.kind, LOG_KINDS, 'other')
     const amount = Math.max(-20, Math.min(20, Math.round(Number(a.amount) || 1)))
     const note = s(a.note, 200) || null
     await this.log(kind, amount, null, note)
     const unit: Record<LogKind, string> = {
       referral: 'referral ask',
       application: 'application',
+      followup: 'follow-up',
       leetcode: 'LeetCode problem',
       workout: 'workout',
       scalp: 'scalp wash',
@@ -490,7 +504,7 @@ export class Toolbox {
     await this.write('problems', row as unknown as Record<string, unknown>)
     if (existing) Object.assign(existing, row)
     else this.state.problems.push(row)
-    if (result !== 'stuck') await this.log('leetcode', 1, row.id)
+    await this.log('leetcode', 1, row.id) // stuck still counts as effort
     const verdict = { solved: 'solved', hints: 'solved with hints', stuck: 'stuck — back tomorrow' }[result]
     await this.record(
       {
@@ -531,8 +545,9 @@ export class Toolbox {
       notes: [existing?.notes, s(a.notes, 600)].filter(Boolean).join('\n'),
     }
     const becameMessaged = status === 'messaged' && existing?.status !== 'messaged'
-    if (becameMessaged) row.last_contact_at = new Date().toISOString()
-    if (a.follow_up_days != null || becameMessaged) {
+    const followedUp = a.followed_up === true && !becameMessaged
+    if (becameMessaged || followedUp) row.last_contact_at = new Date().toISOString()
+    if (a.follow_up_days != null || becameMessaged || followedUp) {
       const days = Math.max(1, Math.min(30, Number(a.follow_up_days) || 5))
       row.follow_up_on = addDays(this.state.today, days)
     }
@@ -541,6 +556,7 @@ export class Toolbox {
     if (existing) Object.assign(existing, row)
     else this.state.contacts.push(row)
     if (becameMessaged) await this.log('referral', 1, row.id)
+    if (followedUp) await this.log('followup', 1, row.id)
     const statusLabel: Record<ContactStatus, string> = {
       to_contact: 'to reach out',
       messaged: `messaged, follow up ${row.follow_up_on ? formatDate(row.follow_up_on) : 'later'}`,
@@ -651,12 +667,6 @@ export class Toolbox {
       const v = raw.padStart(5, '0')
       settings.sleep = { ...settings.sleep, [key.split('.')[1]]: v }
       label = `${key === 'sleep.bed' ? 'Bedtime' : 'Wake-up'} → ${v}`
-    } else if (key.startsWith('targets.')) {
-      const t = key.split('.')[1] as TargetKey
-      if (!TARGETS.includes(t)) return { ok: false, error: 'unknown target' }
-      const n = Math.max(0, Math.min(50, Math.round(Number(raw))))
-      settings.targets = { ...settings.targets, [t]: n }
-      label = `Weekly ${t} target → ${n}`
     } else if (key === 'voice') {
       settings.voice = pickEnum(raw, ['firm', 'gentle', 'strict'], settings.voice)
       label = `Voice → ${settings.voice}`
@@ -680,5 +690,61 @@ export class Toolbox {
       value: raw,
     })
     return { ok: true }
+  }
+
+  // ── battery
+
+  private async setEnergy(a: Args): Promise<Result> {
+    const level = pickEnum(a.level, ['low', 'normal', 'high'] as Energy[], 'normal')
+    const st = this.state
+    const today = st.today
+    const now = new Date().toISOString()
+    if (st.checkin && st.checkin.date === today) {
+      const { error } = await this.db.from('day_checkins').update({ energy: level }).eq('id', st.checkin.id)
+      if (error) throw new Error(error.message)
+      st.checkin.energy = level
+    } else {
+      const row = { id: stableId(`${this.uid}:checkin:${today}`), date: today, checked_in_at: now, note: 'set in chat', energy: level }
+      await this.write('day_checkins', row)
+      st.checkin = { ...row, user_id: this.uid }
+    }
+
+    const next = planDay({
+      userId: this.uid,
+      date: today,
+      settings: st.settings,
+      logs: st.logs,
+      energy: level,
+      context: planContext({ date: today, problems: st.problems, contacts: st.contacts, jobs: st.jobs }),
+    })
+    const diff = diffPlan(st.missions, today, next)
+    if (diff.add.length) {
+      const { error } = await this.db.from('missions').upsert(
+        diff.add.map((m) => ({ ...m, user_id: this.uid })),
+        { onConflict: 'id', ignoreDuplicates: true },
+      )
+      if (error) throw new Error(error.message)
+      st.missions.push(...diff.add)
+    }
+    for (const u of diff.update) {
+      const { error } = await this.db.from('missions').update(u.patch).eq('id', u.id)
+      if (error) throw new Error(error.message)
+      Object.assign(st.missions.find((m) => m.id === u.id) ?? {}, u.patch)
+    }
+    if (diff.remove.length) {
+      const { error } = await this.db.from('missions').update({ deleted_at: now }).in('id', diff.remove)
+      if (error) throw new Error(error.message)
+      for (const m of st.missions) if (diff.remove.includes(m.id)) m.deleted_at = now
+    }
+    const word = { low: 'Low', normal: 'Normal', high: 'Charged' }[level]
+    const changes = [diff.add.length && `${diff.add.length} added`, diff.remove.length && `${diff.remove.length} set aside`]
+      .filter(Boolean)
+      .join(', ')
+    await this.record(
+      { type: 'settings.energy', label: `Battery today: ${word}${changes ? ` — plan resized (${changes})` : ''}`, table: 'day_checkins' },
+      'energy.set',
+      { level, added: diff.add.length, removed: diff.remove.length },
+    )
+    return { ok: true, added: diff.add.map((m) => m.title), set_aside: diff.remove.length }
   }
 }

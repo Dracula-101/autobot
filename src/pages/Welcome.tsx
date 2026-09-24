@@ -55,7 +55,7 @@ export function WelcomePage() {
             <p className="mt-2 text-[15px] font-semibold text-ink-2">Here’s how I’ll help you lock in this semester:</p>
             <ul className="card mt-5 space-y-3 p-5 text-left">
               {[
-                { icon: CalendarHeart, text: 'I plan each day from your weekly targets — no clock times, just the moments of your day.' },
+                { icon: CalendarHeart, text: 'I plan each day around your battery — no quotas, no clock times, just the moments of your day.' },
                 { icon: Brain, text: 'I remember what matters about you, and every change we make is saved on all your devices.' },
                 { icon: Bell, text: 'I tap you for pills, serum, classes, follow-ups, and bedtime — and nudge when a day stalls.' },
               ].map(({ icon: Icon, text }) => (

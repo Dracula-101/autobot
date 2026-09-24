@@ -23,9 +23,9 @@ import {
   routineDone,
   routinesFor,
   routineWeekCount,
-  weekTotals,
   currentMoment,
 } from './schedule.ts'
+import { cellStates, describeCells } from './charge.ts'
 import { fill, joinNames, NUDGE_COPY, pick, tomorrowLine } from './voice.ts'
 
 export interface ReminderContext {
@@ -170,7 +170,9 @@ export function reminderSlots(ctx: ReminderContext): Slot[] {
     })
   }
 
-  if (s.notify.nudges && missions.length) {
+  // A low-battery day is allowed to be light: no nagging.
+  const lowDay = ctx.checkin?.date === date && ctx.checkin.energy === 'low'
+  if (s.notify.nudges && missions.length && !lowDay) {
     const voice = s.voice
     const nowMins = dayMinutes(ctx.now, s.rolloverHour)
     const done = missions.filter((m) => m.status === 'done').length
@@ -265,15 +267,12 @@ export function reminderSlots(ctx: ReminderContext): Slot[] {
       key: `weekly:${weekStart(date)}`,
       at: 20 * 60,
       window: 240,
-      build: () => {
-        const t = weekTotals(ctx.logs, date)
-        return {
-          title: '🗓️ Week wrap',
-          body: `${t.referral}/${s.targets.referral} referrals · ${t.leetcode} LeetCode · ${t.workout} workouts. Tap for your review.`,
-          url: '/?review=1',
-          tag: 'weekly',
-        }
-      },
+      build: () => ({
+        title: '🗓️ Week wrap',
+        body: `${describeCells(cellStates(ctx.logs, date))}. Two minutes for your review?`,
+        url: '/?review=1',
+        tag: 'weekly',
+      }),
     })
   }
 
