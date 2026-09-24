@@ -1,0 +1,10 @@
+# Supabase CLI config for the linked AutoBot project.
+project_id = "autobot"
+
+# Both functions verify callers themselves: autobot-chat checks the user's
+# session token, autobot-notify accepts the pg_cron shared secret or a session.
+[functions.autobot-chat]
+verify_jwt = false
+
+[functions.autobot-notify]
+verify_jwt = false

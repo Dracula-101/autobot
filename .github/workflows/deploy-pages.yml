@@ -28,11 +28,13 @@ jobs:
       - name: Install
         run: npm ci
 
+      - name: Test
+        run: npm test
+
       - name: Build
         env:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
-          VITE_GEMINI_API_KEY: ${{ secrets.VITE_GEMINI_API_KEY }}
           VITE_BASE: /autobot/
           NODE_ENV: production
         run: npm run build
@@ -51,3 +53,25 @@ jobs:
     steps:
       - id: deployment
         uses: actions/deploy-pages@v4
+
+  # The Gemini key lives server-side only (Supabase Vault), never in the site
+  # bundle. Rotating it = update the GEMINI_API_KEY secret and re-run this.
+  sync-server-secrets:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Copy Gemini key into Supabase Vault
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          GEMINI_KEY: ${{ secrets.GEMINI_API_KEY || secrets.VITE_GEMINI_API_KEY }}
+        run: |
+          if [ -z "$GEMINI_KEY" ] || [ -z "$SERVICE_KEY" ]; then
+            echo "Gemini or Supabase secret missing — skipping."
+            exit 0
+          fi
+          body=$(jq -n --arg v "$GEMINI_KEY" '{secret_name: "gemini_api_key", secret_value: $v}')
+          status=$(curl -s -o /dev/null -w '%{http_code}' -X POST "$SUPABASE_URL/rest/v1/rpc/set_app_secret" \
+            -H "apikey: $SERVICE_KEY" -H "Authorization: Bearer $SERVICE_KEY" \
+            -H "Content-Type: application/json" -d "$body")
+          echo "Vault update HTTP $status"
+          test "$status" = "204" -o "$status" = "200"

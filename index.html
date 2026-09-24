@@ -1,20 +1,35 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-phase="night">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <meta name="theme-color" content="#0c0d10" />
-    <meta name="description" content="Autobot — cute caretaker for your daily lock-in. Job hunt → LeetCode → Fitness." />
+    <meta name="theme-color" content="#0A0F24" />
+    <meta name="description" content="Autobot — a robot friend that plans your day, remembers what matters, and nudges you toward the job." />
     <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Autobot" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Manrope:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800;900&family=Space+Mono:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
     <title>Autobot</title>
+    <script>
+      // Paint the right sky before React loads (no flash of the wrong theme).
+      try {
+        var pref = JSON.parse(localStorage.getItem('autobot:theme') || '"auto"')
+        var h = Number(new Intl.DateTimeFormat('en-US', { timeZone: 'America/Denver', hour: 'numeric', hourCycle: 'h23' }).format(new Date()))
+        var phase = pref === 'day' ? 'day' : pref === 'night' ? 'night' : h >= 21 || h < 6 ? 'night' : h < 8 ? 'dawn' : h < 18 ? 'day' : 'dusk'
+        document.documentElement.setAttribute('data-phase', phase)
+      } catch (e) {}
+    </script>
   </head>
-  <body class="bg-ink text-cream antialiased">
+  <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
