@@ -21,7 +21,7 @@ export function AutobotMascot({ mood = 'idle', size = 40, className = '' }: Prop
           ? 'M13.5 18.8h5'
           : 'M12.5 18c1 1.1 2.4 1.7 3.5 1.7s2.5-.6 3.5-1.7'
   const antennaTip =
-    mood === 'nudge' ? '#e8b86d' : mood === 'happy' ? '#7dcea0' : '#9aa3b2'
+    mood === 'nudge' ? '#d4a574' : mood === 'happy' ? '#8fbc9a' : '#9aa3b2'
   const blush = mood === 'happy' || mood === 'nudge'
 
   return (
@@ -84,7 +84,7 @@ export function AutobotMascot({ mood = 'idle', size = 40, className = '' }: Prop
         cx="16"
         cy="24.2"
         r="1.1"
-        fill={mood === 'sleep' ? '#3a3f4a' : '#7dcea0'}
+        fill={mood === 'sleep' ? '#3a3f4a' : '#8fbc9a'}
         opacity={mood === 'sleep' ? 0.5 : 0.85}
       />
     </svg>

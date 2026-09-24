@@ -62,7 +62,7 @@ body {
     @apply mb-1.5 block text-[12px] font-medium text-cream/45;
   }
   .eyebrow {
-    @apply text-[11px] font-semibold uppercase tracking-[0.18em] text-sage/80;
+    @apply text-[11px] font-semibold uppercase tracking-[0.14em] text-sage/80;
   }
 }
 

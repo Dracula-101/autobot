@@ -31,7 +31,7 @@ export function Layout() {
           </div>
         </div>
         <p className="pt-1 text-right text-[11px] leading-relaxed text-ink-muted">
-          Hunt → LC → Move
+          Hunt · LC · Move
           <br />
           <span className="text-cream/25">Denver time</span>
         </p>
