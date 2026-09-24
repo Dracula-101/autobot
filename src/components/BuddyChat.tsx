@@ -104,7 +104,7 @@ export function BuddyChat() {
                 <div
                   key={i}
                   className={[
-                    'max-w-[85%] rounded-2xl px-3.5 py-2.5 text-[14px] leading-relaxed',
+                    'max-w-[85%] min-w-0 whitespace-pre-wrap break-words rounded-2xl px-3.5 py-2.5 text-[14px] leading-relaxed [overflow-wrap:anywhere]',
                     m.role === 'user' ? 'ml-auto bg-cream text-ink' : 'bg-ink-soft text-cream/85',
                   ].join(' ')}
                 >

@@ -31,12 +31,19 @@ export async function askBuddy(messages: ChatMsg[], context: string): Promise<st
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       contents,
-      generationConfig: { temperature: 0.7, maxOutputTokens: 400 },
+      generationConfig: { temperature: 0.7, maxOutputTokens: 2048 },
     }),
   })
   if (!res.ok) {
     const err = await res.text()
-    throw new Error(`Gemini ${res.status}: ${err.slice(0, 160)}`)
+    let detail = err
+    try {
+      const j = JSON.parse(err) as { error?: { message?: string } }
+      if (j.error?.message) detail = j.error.message
+    } catch {
+      /* keep raw */
+    }
+    throw new Error(`Gemini ${res.status}: ${detail.slice(0, 500)}`)
   }
   const data = (await res.json()) as {
     candidates?: { content?: { parts?: { text?: string }[] } }[]
