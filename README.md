@@ -106,7 +106,7 @@ Repo must be named **`lockin-checkin`** (base path `/lockin-checkin/`), or set `
 
 Optional local deploy: `npm run deploy` (uses `gh-pages` package) — Actions is preferred.
 
-`package.json` `homepage` is set to `https://pratikpujari.github.io/lockin-checkin` — change the username if needed.
+`package.json` `homepage` is set to `https://Dracula-101.github.io/lockin-checkin` — change the username if needed.
 
 ---
 
