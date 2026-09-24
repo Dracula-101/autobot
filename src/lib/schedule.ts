@@ -119,7 +119,13 @@ export function buddyBrief(date = new Date()): string {
   }
   if (next) {
     const mins = next.startMin - now
-    return `${clock} MDT. ${next.course} in ${mins} min · ${next.room}. Light hunt or one LC until then.`
+    const when =
+      mins >= 120
+        ? `at ${formatClock(next.startMin)}`
+        : mins >= 60
+          ? `in ${Math.round(mins / 60)}h ${mins % 60}m`
+          : `in ${mins} min`
+    return `${clock} MDT. ${next.course} ${when} · ${next.room}. Light hunt or one LC until then.`
   }
   return `${clock} MDT · Denver. I’m with you.`
 }
