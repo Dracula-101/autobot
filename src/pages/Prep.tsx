@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Check, ChevronDown, ExternalLink, GraduationCap, Plus, RotateCcw } from 'lucide-react'
 import {
+  cellStates,
   leetcodeUrl,
   live,
   logicalDay,
@@ -12,7 +13,7 @@ import {
   reviewsDue,
   ROADMAP,
   searchRoadmap,
-  weekTotals,
+  type Checkin,
   type LogEntry,
   type Problem,
   type ProblemResult,
@@ -24,7 +25,8 @@ import { PageHeader } from '../components/Shell'
 import { Sheet } from '../components/Sheet'
 import { useToast } from '../components/Toast'
 import { cheer } from '../components/Autobot'
-import { Progress, Ring, SectionTitle } from '../components/ui'
+import { Progress, SectionTitle } from '../components/ui'
+import { CellTile } from '../components/Cells'
 
 const DIFF_TONE = { Easy: 'bg-mint/15 text-mint', Medium: 'bg-amber/15 text-amber', Hard: 'bg-rose/12 text-rose' } as const
 
@@ -135,8 +137,9 @@ export function PrepPage() {
   const { settings } = useApp()
   const problems = live(useRows<Problem>('problems'))
   const logs = useRows<LogEntry>('logs')
+  const checkins = useRows<Checkin>('day_checkins')
   const today = logicalDay(new Date(), settings.rolloverHour)
-  const week = weekTotals(logs, today)
+  const prep = cellStates(logs, today, checkins.map((c) => c.date).sort()[0]).prep
   const due = reviewsDue(problems, today)
   const next = nextRoadmapProblem(problems)
   const [sheet, setSheet] = useState<{ initial?: RoadmapProblem | Problem | null } | null>(null)
@@ -158,30 +161,22 @@ export function PrepPage() {
         }
       />
 
-      <div className="card flex items-center gap-4 p-4">
-        <Ring value={week.leetcode} max={settings.targets.leetcode} size={64} stroke={7} color="rgb(var(--a-prep))">
-          <span className="num text-[14px] font-bold text-ink">{week.leetcode}</span>
-        </Ring>
-        <div className="grid flex-1 grid-cols-3 gap-2 text-center">
-          <div>
-            <p className="num text-[20px] font-bold text-ink">{solved.size}</p>
-            <p className="text-[12px] font-extrabold text-ink-3">solved</p>
+      <div className="grid gap-3 sm:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+        <CellTile state={prep} blurb="Every attempt charges it — even the ones you get stuck on." />
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-1">
+          <div className="card px-4 py-3">
+            <p className="text-[12px] font-extrabold text-ink-3">Reviews due</p>
+            <p className={`num mt-0.5 text-[22px] font-bold ${due.length ? 'text-accent' : 'text-ink'}`}>{due.length}</p>
           </div>
-          <div>
-            <p className={`num text-[20px] font-bold ${due.length ? 'text-accent' : 'text-ink'}`}>{due.length}</p>
-            <p className="text-[12px] font-extrabold text-ink-3">reviews due</p>
-          </div>
-          <div>
-            <p className="num text-[20px] font-bold text-ink">
-              {started}/{PATTERNS.length}
+          <div className="card px-4 py-3">
+            <p className="text-[12px] font-extrabold text-ink-3">Patterns started</p>
+            <p className="num mt-0.5 text-[22px] font-bold text-ink">
+              {started}
+              <span className="text-ink-3">/{PATTERNS.length}</span>
             </p>
-            <p className="text-[12px] font-extrabold text-ink-3">patterns</p>
           </div>
         </div>
       </div>
-      <p className="mt-2 px-1 text-[12px] font-bold text-ink-3">
-        This week: {week.leetcode}/{settings.targets.leetcode} problems
-      </p>
 
       {next && (
         <section className="card mt-4 p-5">

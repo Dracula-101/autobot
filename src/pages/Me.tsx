@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
-import { Brain, ChevronRight, History, LogOut, Minus, Plus, Trash2 } from 'lucide-react'
+import { BatteryCharging, Brain, ChevronRight, History, LogOut, Plus, Trash2 } from 'lucide-react'
 import {
   DAY_KEYS,
   DAY_NAMES,
@@ -12,7 +12,6 @@ import {
   type DayKey,
   type Routine,
   type Settings,
-  type TargetKey,
   type ThemePref,
   type Voice,
 } from '@core/index.ts'
@@ -139,23 +138,6 @@ function RoutineSheet({ routine, open, onClose }: { routine: Routine | null; ope
   )
 }
 
-function Stepper({ value, onChange, label }: { value: number; onChange: (n: number) => void; label: string }) {
-  return (
-    <div className="flex items-center justify-between gap-3 py-2">
-      <span className="text-[15px] font-bold text-ink">{label}</span>
-      <div className="flex items-center gap-2">
-        <button type="button" className="btn-soft btn-sm h-9 w-9 px-0" onClick={() => onChange(Math.max(0, value - 1))} aria-label={`Fewer ${label}`}>
-          <Minus className="h-4 w-4" />
-        </button>
-        <span className="num w-8 text-center text-[16px] font-bold">{value}</span>
-        <button type="button" className="btn-soft btn-sm h-9 w-9 px-0" onClick={() => onChange(Math.min(50, value + 1))} aria-label={`More ${label}`}>
-          <Plus className="h-4 w-4" />
-        </button>
-      </div>
-    </div>
-  )
-}
-
 function ClassEditor({ settings, onChange }: { settings: Settings; onChange: (classes: ClassBlock[]) => void }) {
   const [adding, setAdding] = useState(false)
   const [draft, setDraft] = useState<ClassBlock>({
@@ -247,13 +229,6 @@ export function MePage() {
   const [routineSheet, setRoutineSheet] = useState<{ routine: Routine | null } | null>(null)
   const [displayName, setDisplayName] = useState(profile?.display_name ?? name)
 
-  const targetLabels: Record<TargetKey, string> = {
-    referral: 'Referral asks',
-    application: 'Applications',
-    leetcode: 'LeetCode problems',
-    workout: 'Workouts',
-  }
-
   return (
     <div className="page">
       <PageHeader title="You" subtitle={<SyncBadge />} />
@@ -325,15 +300,16 @@ export function MePage() {
         </button>
       </Card>
 
-      <Card title="Weekly targets" hint="Autobot spreads these across your days automatically">
-        {(Object.keys(targetLabels) as TargetKey[]).map((k) => (
-          <Stepper
-            key={k}
-            label={targetLabels[k]}
-            value={settings.targets[k]}
-            onChange={(n) => updateSettings({ targets: { ...settings.targets, [k]: n } })}
-          />
-        ))}
+      <Card title="Power cells" hint="How Autobot tracks progress — no quotas">
+        <div className="flex gap-3">
+          <BatteryCharging className="mt-0.5 h-6 w-6 shrink-0 text-mint" aria-hidden />
+          <ul className="space-y-1.5 text-[14px] font-semibold text-ink-2">
+            <li>Anything you log charges a cell — Hunt, Prep, or Body. One thing or ten.</li>
+            <li>Cells drain a little each day, so one action a day keeps a cell full.</li>
+            <li>Big days overflow into “supercharged” and carry you through lighter ones.</li>
+            <li>Each morning you tell me your battery; I size the day to match.</li>
+          </ul>
+        </div>
       </Card>
 
       <Card title="Schedule" hint="Only classes have clock times. Everything else flexes.">

@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom'
 import { ArrowRight, Check, Pause, Play, Shuffle, TimerReset } from 'lucide-react'
 import {
   addDays,
+  CELL_LABEL,
+  cellOf,
   classPhase,
   formatClock,
   formatDuration,
@@ -10,17 +12,18 @@ import {
   MOMENT_ORDER,
   momentLabel,
   STACK_LABEL,
+  STATUS_LABEL,
+  type Cell,
+  type CellState,
   type ClassBlock,
   type DayType,
-  type LogKind,
   type Mission,
   type Moment,
-  type Settings,
   type StackItem,
 } from '@core/index.ts'
 import { useActions } from '../lib/useActions'
 import type { PerWeekRoutine } from '../lib/today'
-import { AREA, AreaIcon, Progress, SizeBadge } from './ui'
+import { AREA, AreaIcon, SizeBadge } from './ui'
 import { Autobot, cheer } from './Autobot'
 import { useToast } from './Toast'
 
@@ -41,20 +44,16 @@ function Elapsed({ since }: { since: string }) {
 
 export function NextUpCard({
   mission,
-  progress,
   type,
   moment,
-  weekCount,
-  weekTarget,
+  cells,
   onSwap,
   total,
 }: {
   mission: Mission | null
-  progress: number
   type: DayType
   moment: Moment
-  weekCount?: number
-  weekTarget?: number
+  cells: Record<Cell, CellState>
   onSwap: () => void
   total: number
 }) {
@@ -79,6 +78,9 @@ export function NextUpCard({
 
   const doing = mission.status === 'doing'
   const link = AREA_LINK[mission.area]
+  const cell = cellOf(mission.target_key)
+  const cellState = cell ? cells[cell] : null
+  const detail = mission.note && mission.note !== 'racket' ? mission.note : null
   const laterMoment = MOMENT_ORDER[Math.min(MOMENT_ORDER.indexOf(moment) + 1, 4)]
   const pushLater = () => {
     const tonight = moment === 'night' || moment === 'bed'
@@ -101,22 +103,18 @@ export function NextUpCard({
         <AreaIcon area={mission.area} size="lg" />
         <div className="min-w-0 flex-1">
           <h2 className="text-[21px] font-black leading-tight tracking-[-0.015em] text-ink">{mission.title}</h2>
+          {detail && <p className="mt-0.5 text-[14px] font-bold text-ink-2">{detail}</p>}
           <p className="mt-1 text-[13px] font-bold text-ink-3">
             {doing && mission.started_at ? (
               <>
                 Going for <Elapsed since={mission.started_at} />
               </>
-            ) : mission.target_key && weekTarget ? (
+            ) : cellState ? (
               <>
-                {mission.amount > 1 && (
-                  <span className="num">
-                    {Math.min(progress, mission.amount)}/{mission.amount} today ·{' '}
-                  </span>
-                )}
-                <span className="num">
-                  {weekCount}/{weekTarget}
-                </span>{' '}
-                this week
+                Charges your {CELL_LABEL[cellState.cell]} cell ·{' '}
+                <span className={cellState.status === 'low' || cellState.status === 'drained' ? 'text-accent' : ''}>
+                  {STATUS_LABEL[cellState.status].toLowerCase()} right now
+                </span>
               </>
             ) : (
               AREA[mission.area].label
@@ -124,11 +122,6 @@ export function NextUpCard({
           </p>
         </div>
       </div>
-      {mission.target_key && mission.amount > 1 && (
-        <div className="mt-3">
-          <Progress value={progress} max={mission.amount} className={AREA[mission.area].fill} />
-        </div>
-      )}
       <div className="mt-4 flex flex-wrap gap-2">
         {doing ? (
           <>
@@ -271,8 +264,10 @@ export function PerWeekChips({ items }: { items: PerWeekRoutine[] }) {
           className={`chip min-h-[36px] px-3 text-[13px] ${doneToday ? 'bg-mint/15 text-ink' : 'bg-surface text-ink-2 shadow-card'}`}
         >
           <span aria-hidden>{routine.emoji}</span> {routine.name}
-          <span className="num text-ink-3">
-            {count}/{routine.per_week}
+          <span className="flex gap-0.5" aria-label={`${count} of ${routine.per_week} this week`}>
+            {Array.from({ length: routine.per_week ?? 0 }, (_, i) => (
+              <span key={i} className={`h-2 w-2 rounded-full ${i < count ? 'bg-a-body' : 'border border-line-2'}`} />
+            ))}
           </span>
           {doneToday && <Check className="h-3.5 w-3.5 text-mint" strokeWidth={3} />}
         </button>
@@ -314,43 +309,6 @@ export function ClassTimeline({ lectures, nowMins }: { lectures: ClassBlock[]; n
           )
         })}
       </ol>
-    </section>
-  )
-}
-
-const PULSE: { key: LogKind & keyof Settings['targets']; label: string; area: Mission['area'] }[] = [
-  { key: 'referral', label: 'Referral asks', area: 'hunt' },
-  { key: 'application', label: 'Applications', area: 'hunt' },
-  { key: 'leetcode', label: 'LeetCode', area: 'prep' },
-  { key: 'workout', label: 'Workouts', area: 'body' },
-]
-
-export function WeekPulse({ totals, targets, daysLeft }: { totals: Record<LogKind, number>; targets: Settings['targets']; daysLeft: number }) {
-  return (
-    <section className="card p-4">
-      <div className="flex items-baseline justify-between">
-        <h3 className="text-[15px] font-black text-ink">This week</h3>
-        <span className="text-[12px] font-bold text-ink-3">
-          {daysLeft} {daysLeft === 1 ? 'day' : 'days'} left
-        </span>
-      </div>
-      <div className="mt-3 grid gap-3 sm:grid-cols-2">
-        {PULSE.map(({ key, label, area }) => {
-          const v = totals[key] ?? 0
-          const t = targets[key]
-          return (
-            <div key={key}>
-              <div className="mb-1 flex items-baseline justify-between text-[13px] font-bold">
-                <span className="text-ink-2">{label}</span>
-                <span className={`num ${v >= t ? 'text-mint' : 'text-ink-3'}`}>
-                  {v}/{t}
-                </span>
-              </div>
-              <Progress value={v} max={t} className={AREA[area].fill} />
-            </div>
-          )
-        })}
-      </div>
     </section>
   )
 }

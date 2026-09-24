@@ -4,7 +4,15 @@
 import { assert, assertEquals, assertMatch } from 'jsr:@std/assert@1'
 import { Toolbox } from '../supabase/functions/_shared/tools.ts'
 import type { UserState } from '../supabase/functions/_shared/state.ts'
-import { DEFAULT_SETTINGS, instantOf, planDay, seedRoutines } from '../supabase/functions/_shared/core/index.ts'
+import {
+  DEFAULT_SETTINGS,
+  instantOf,
+  planContext,
+  planDay,
+  seedRoutines,
+  type Contact,
+  type Job,
+} from '../supabase/functions/_shared/core/index.ts'
 import type { Db } from '../supabase/functions/_shared/db.ts'
 
 type Write = { table: string; op: string; row: Record<string, unknown>; filters: [string, unknown][] }
@@ -16,6 +24,7 @@ function fakeDb(writes: Write[]): Db {
     const result = { error: null, data: null }
     const self: Record<string, unknown> = {
       eq: (k: string, v: unknown) => (w.filters.push([k, v]), self),
+      in: (k: string, v: unknown) => (w.filters.push([k, v]), self),
       is: (k: string, v: unknown) => (w.filters.push([k, v]), self),
       select: () => self,
       single: () => Promise.resolve(result),
@@ -25,7 +34,8 @@ function fakeDb(writes: Write[]): Db {
   }
   return {
     from: (table: string) => ({
-      upsert: (row: Record<string, unknown>) => chain(table, 'upsert', row),
+      upsert: (row: Record<string, unknown> | Record<string, unknown>[]) =>
+        Array.isArray(row) ? (row.forEach((r) => chain(table, 'upsert', r)), chain(table, 'batch', {})) : chain(table, 'upsert', row),
       insert: (row: Record<string, unknown>) => chain(table, 'insert', row),
       update: (row: Record<string, unknown>) => chain(table, 'update', row),
     }),
@@ -36,6 +46,12 @@ const USER = '00000000-0000-4000-8000-000000000001'
 const TODAY = '2026-09-23'
 
 function state(): UserState {
+  const contacts: Contact[] = [
+    { id: 'c0000000-0000-4000-8000-000000000001', name: 'Priya', company: 'Google', role: '', channel: 'linkedin', handle: '', status: 'to_contact', notes: '' },
+  ]
+  const jobs: Job[] = [
+    { id: 'j0000000-0000-4000-8000-000000000001', company: 'Stripe', title: 'SWE', url: '', location: '', status: 'saved', sponsors: 'yes', notes: '' },
+  ]
   return {
     userId: USER,
     name: 'Pratik',
@@ -43,12 +59,18 @@ function state(): UserState {
     now: instantOf(TODAY, 15 * 60),
     today: TODAY,
     memories: [],
-    missions: planDay({ userId: USER, date: TODAY, settings: DEFAULT_SETTINGS, logs: [], reviewsDue: 0 }),
+    missions: planDay({
+      userId: USER,
+      date: TODAY,
+      settings: DEFAULT_SETTINGS,
+      logs: [],
+      context: planContext({ date: TODAY, problems: [], contacts, jobs }),
+    }),
     routines: seedRoutines(USER),
     routineLogs: [],
     logs: [],
-    contacts: [],
-    jobs: [],
+    contacts,
+    jobs,
     problems: [],
     checkin: null,
     history: [],
@@ -69,18 +91,52 @@ Deno.test('remember saves once and ignores exact duplicates', async () => {
   assertMatch(tb.actions[0].label, /^Remembered: /)
 })
 
-Deno.test('finishing a target mission logs only the missing progress', async () => {
+Deno.test('finishing a session logs one action that charges its cell', async () => {
   const writes: Write[] = []
   const st = state()
-  const referral = st.missions.find((m) => m.key === 'plan:referral')!
-  st.logs.push({ id: 'l1', day: TODAY, kind: 'referral', amount: 1, ref_id: null })
+  const reach = st.missions.find((m) => m.key === 'plan:hunt')!
   const tb = new Toolbox(fakeDb(writes), st)
-  const res = await tb.run(call('update_mission', { ref: referral.id.slice(0, 8), status: 'done' }))
+  const res = await tb.run(call('update_mission', { ref: reach.id.slice(0, 8), status: 'done' }))
   assertEquals(res.ok, true)
   const log = writes.find((w) => w.table === 'logs')!
-  assertEquals(log.row.amount, referral.amount - 1)
-  assertEquals(log.row.ref_id, referral.id)
+  assertEquals(log.row.kind, 'referral')
+  assertEquals(log.row.amount, 1)
+  assertEquals(log.row.ref_id, reach.id)
   assertMatch(tb.actions[0].label, /^Marked done: /)
+})
+
+Deno.test('a session already covered by logged work adds nothing extra', async () => {
+  const writes: Write[] = []
+  const st = state()
+  const reach = st.missions.find((m) => m.key === 'plan:hunt')!
+  st.logs.push({ id: 'l1', day: TODAY, kind: 'referral', amount: 1, ref_id: null })
+  const tb = new Toolbox(fakeDb(writes), st)
+  await tb.run(call('update_mission', { ref: reach.id.slice(0, 8), status: 'done' }))
+  assertEquals(writes.filter((w) => w.table === 'logs').length, 0)
+})
+
+Deno.test('set_energy shrinks the plan on a low day and records it', async () => {
+  const writes: Write[] = []
+  const st = state()
+  const tb = new Toolbox(fakeDb(writes), st)
+  const res = await tb.run(call('set_energy', { level: 'low' }))
+  assertEquals(res.ok, true)
+  assert(writes.some((w) => w.table === 'day_checkins' && w.row.energy === 'low'))
+  const removed = writes.find((w) => w.table === 'missions' && w.row.deleted_at)
+  assert(removed, 'some untouched sessions are set aside')
+  const hunt = st.missions.find((m) => m.key === 'plan:hunt')!
+  assertEquals(hunt.title, 'One message: Priya at Google')
+  assertMatch(tb.actions[0].label, /^Battery today: Low/)
+})
+
+Deno.test('following up and getting stuck both count as effort', async () => {
+  const writes: Write[] = []
+  const tb = new Toolbox(fakeDb(writes), state())
+  await tb.run(call('save_contact', { name: 'Priya', company: 'Google', status: 'messaged' }))
+  await tb.run(call('save_contact', { name: 'Priya', company: 'Google', followed_up: true }))
+  await tb.run(call('log_problem', { title: 'Word Ladder', result: 'stuck' }))
+  const kinds = writes.filter((w) => w.table === 'logs').map((w) => w.row.kind)
+  assertEquals(kinds, ['referral', 'followup', 'leetcode'])
 })
 
 Deno.test('log_problem autofills from the roadmap and schedules review', async () => {
@@ -127,12 +183,20 @@ Deno.test('update_settings validates and writes the whole settings blob', async 
   assertEquals(saved.sleep.bed, '02:00')
 })
 
-// COLUMNS_JSON=/path/to/columns.json deno test --allow-env --allow-read tests/tools.deno.test.ts
+// COLUMNS_JSON=/path/to/columns.json npm run test:functions
+const columnsPath = (() => {
+  try {
+    return Deno.env.get('COLUMNS_JSON')
+  } catch {
+    return undefined
+  }
+})()
+
 Deno.test({
   name: 'every tool write uses columns that exist in the live schema',
-  ignore: !Deno.env.get('COLUMNS_JSON'),
+  ignore: !columnsPath,
   fn: async () => {
-    const columns = JSON.parse(await Deno.readTextFile(Deno.env.get('COLUMNS_JSON')!)) as Record<string, string[]>
+    const columns = JSON.parse(await Deno.readTextFile(columnsPath!)) as Record<string, string[]>
     const writes: Write[] = []
     const st = state()
     const tb = new Toolbox(fakeDb(writes), st)
@@ -148,8 +212,10 @@ Deno.test({
     await tb.run(call('save_contact', { name: 'Priya', company: 'Google', status: 'messaged' }))
     await tb.run(call('save_job', { company: 'Stripe', title: 'SWE', status: 'applied' }))
     await tb.run(call('mark_routine', { ref: 'morning pill' }))
-    await tb.run(call('update_settings', { key: 'targets.leetcode', value: '15' }))
-    for (const w of writes) {
+    await tb.run(call('update_settings', { key: 'voice', value: 'gentle' }))
+    await tb.run(call('save_contact', { name: 'Priya', company: 'Google', followed_up: true }))
+    await tb.run(call('set_energy', { level: 'high' }))
+    for (const w of writes.filter((w) => w.op !== 'batch')) {
       const extra = Object.keys(w.row).filter((k) => !columns[w.table]?.includes(k))
       assertEquals(extra, [], `${w.table} ${w.op} has unknown columns`)
     }

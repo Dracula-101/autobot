@@ -30,7 +30,7 @@ const SUGGESTIONS: { label: string; text: string; mode?: ChatMode }[] = [
   { label: 'I’m stuck in my room', text: 'I’m in my room and can’t get started. Help me get moving.' },
   { label: 'Who do I ask for referrals?', text: 'Help me pick 3 people to ask for referrals this week, and what to say.' },
   { label: 'Quiz me', text: 'Quiz me on a LeetCode pattern I’m weak at — one question at a time.' },
-  { label: 'How’s my week?', text: 'How am I doing this week against my targets? Be honest.' },
+  { label: 'How are my cells?', text: 'How are my power cells looking this week? Be honest — what needs charging?' },
   { label: 'Get to know me', text: 'Let’s do the get-to-know-you interview.', mode: 'interview' },
 ]
 

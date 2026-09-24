@@ -49,46 +49,6 @@ export function Progress({ value, max, className = 'bg-mint', height = 'h-2' }: 
   )
 }
 
-export function Ring({
-  value,
-  max,
-  size = 44,
-  stroke = 5,
-  color = 'rgb(var(--mint))',
-  children,
-}: {
-  value: number
-  max: number
-  size?: number
-  stroke?: number
-  color?: string
-  children?: ReactNode
-}) {
-  const r = (size - stroke) / 2
-  const c = 2 * Math.PI * r
-  const pct = max <= 0 ? 0 : Math.min(1, value / max)
-  return (
-    <span className="relative inline-flex shrink-0 items-center justify-center" style={{ width: size, height: size }}>
-      <svg width={size} height={size} className="-rotate-90">
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="rgb(var(--surface-3))" strokeWidth={stroke} />
-        <circle
-          cx={size / 2}
-          cy={size / 2}
-          r={r}
-          fill="none"
-          stroke={color}
-          strokeWidth={stroke}
-          strokeLinecap="round"
-          strokeDasharray={c}
-          strokeDashoffset={c * (1 - pct)}
-          className="transition-[stroke-dashoffset] duration-700 ease-out"
-        />
-      </svg>
-      <span className="absolute inset-0 flex items-center justify-center">{children}</span>
-    </span>
-  )
-}
-
 export function SectionTitle({ title, hint, action }: { title: string; hint?: string; action?: ReactNode }) {
   return (
     <div className="mb-2.5 flex items-end justify-between gap-3 px-1">

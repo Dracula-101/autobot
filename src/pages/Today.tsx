@@ -2,13 +2,13 @@ import { useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { MessageCircle } from 'lucide-react'
 import {
-  DAY_KEYS,
   DAY_TYPE_LABEL,
   formatDate,
   hhmmToDayMinutes,
   tomorrowLine,
   weekdayOf,
   weekStart,
+  type Energy,
   type Phase,
   type Review,
 } from '@core/index.ts'
@@ -21,7 +21,9 @@ import { Autobot, type Mood } from '../components/Autobot'
 import { Sky } from '../components/Sky'
 import { MeButton } from '../components/Shell'
 import { AddMission, MomentGroups } from '../components/Missions'
-import { BedtimeCard, ClassTimeline, NextUpCard, PerWeekChips, StackCard, WeekPulse } from '../components/TodayCards'
+import { BedtimeCard, ClassTimeline, NextUpCard, PerWeekChips, StackCard } from '../components/TodayCards'
+import { EnergyCard, PowerCells, WeekCells } from '../components/Cells'
+import { useToast } from '../components/Toast'
 import { SectionTitle } from '../components/ui'
 
 function Hero({ t, phase, text, mood }: { t: TodayState; phase: Phase; text: string; mood: Mood }) {
@@ -102,10 +104,19 @@ function ReviewCard({ date }: { date: string }) {
   )
 }
 
+const ENERGY_TOAST: Record<Energy, string> = {
+  low: 'Low battery day — I trimmed today to what keeps your cells alive.',
+  normal: 'Normal day — plan’s set.',
+  high: 'Charged! I added bonus blocks.',
+}
+
 export function TodayPage() {
   const { settings } = useApp()
+  const actions = useActions()
+  const toast = useToast()
   const phase = usePhase()
   const [skip, setSkip] = useState<string[]>([])
+  const [energyOpen, setEnergyOpen] = useState(false)
   const t = useToday(skip)
   const [params] = useSearchParams()
 
@@ -119,8 +130,13 @@ export function TodayPage() {
   const showMorning = t.morning.length > 0 && (morningPending ? t.nowMins < 18 * 60 : t.moment === 'wake')
   const showNight = t.night.length > 0 && (lateDay || (t.moment === 'evening' && nightPending))
   const open = t.missions.filter((m) => m.status === 'todo' || m.status === 'doing').length
-  const daysLeft = 7 - DAY_KEYS.indexOf(weekdayOf(t.date))
-  const nextTarget = t.nextUp?.target_key
+  const askEnergy = t.moment !== 'bed' && t.moment !== 'night'
+  const pickEnergy = (e: Energy) => {
+    setEnergyOpen(false)
+    setSkip([])
+    const undo = actions.setEnergy(e)
+    toast(ENERGY_TOAST[e], { undo })
+  }
 
   return (
     <div>
@@ -128,6 +144,9 @@ export function TodayPage() {
       <div className="page space-y-4 pt-0 lg:pt-0">
         {showMorning && <StackCard stack="morning" items={t.morning} />}
         {showNight && lateDay && <StackCard stack="night" items={t.night} />}
+        {(askEnergy || t.energy) && (
+          <EnergyCard energy={t.energy} open={energyOpen || (!t.energy && askEnergy)} onOpen={() => setEnergyOpen(true)} onPick={pickEnergy} />
+        )}
         {t.moment === 'bed' ? (
           <BedtimeCard
             nowMins={t.nowMins}
@@ -138,15 +157,14 @@ export function TodayPage() {
         ) : (
         <NextUpCard
           mission={t.nextUp}
-          progress={t.nextUp ? (t.progress.get(t.nextUp.id) ?? 0) : 0}
           type={t.type}
           moment={t.moment}
-          weekCount={nextTarget ? t.totals[nextTarget] : undefined}
-          weekTarget={nextTarget ? settings.targets[nextTarget] : undefined}
+          cells={t.cells}
           total={t.total}
           onSwap={() => setSkip((s) => (t.nextUp && s.length + 1 < open ? [...s, t.nextUp.id] : []))}
         />
         )}
+        <PowerCells cells={t.cells} />
         {showNight && !lateDay && <StackCard stack="night" items={t.night} />}
         <PerWeekChips items={t.perWeek} />
         <ClassTimeline lectures={t.lectures} nowMins={t.nowMins} />
@@ -160,7 +178,7 @@ export function TodayPage() {
           )}
         </div>
         <AddMission day={t.date} type={t.type} defaultMoment={t.moment} />
-        <WeekPulse totals={t.totals} targets={settings.targets} daysLeft={daysLeft} />
+        <WeekCells cells={t.cells} />
         {(weekdayOf(t.date) === 'sun' || params.has('review')) && <ReviewCard date={t.date} />}
       </div>
     </div>

@@ -44,7 +44,6 @@ export const DEFAULT_SETTINGS: Settings = {
   rolloverHour: 5,
   sleep: { bed: '02:30', wake: '10:30' },
   sportDays: ['sun', 'mon'],
-  targets: { referral: 8, application: 10, leetcode: 12, workout: 4 },
   classes: FALL_2026_CLASSES,
   notify: {
     routines: true,
@@ -67,7 +66,6 @@ export function withDefaults(raw: Partial<Settings> | null | undefined): Setting
     ...DEFAULT_SETTINGS,
     ...s,
     sleep: { ...DEFAULT_SETTINGS.sleep, ...(s.sleep ?? {}) },
-    targets: { ...DEFAULT_SETTINGS.targets, ...(s.targets ?? {}) },
     notify: { ...DEFAULT_SETTINGS.notify, ...(s.notify ?? {}) },
     classes: s.classes ?? DEFAULT_SETTINGS.classes,
     sportDays: s.sportDays ?? DEFAULT_SETTINGS.sportDays,

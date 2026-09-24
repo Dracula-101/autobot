@@ -168,6 +168,7 @@ export function weekTotals(logs: LogEntry[], date: string, opts: { before?: stri
   const totals: Record<LogKind, number> = {
     referral: 0,
     application: 0,
+    followup: 0,
     leetcode: 0,
     workout: 0,
     scalp: 0,

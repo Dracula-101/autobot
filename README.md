@@ -10,10 +10,14 @@ to get push notifications on your phone.
 
 - **Follows the sky.** The whole UI (and the robot) shifts through dawn, day, dusk and night using the
   real Boulder sunrise and sunset.
-- **Clock-free days.** Each day is autofilled from weekly targets (referrals, applications, LeetCode,
-  workouts) into *moments* — after waking, out of the room, evening, night-owl hours, before bed.
-  Only classes have times. Autobot spotlights one **Next up** mission at a time; skipped work rolls
-  into the rest of the week.
+- **Power cells, not quotas.** Anything you log charges one of three cells — Hunt, Prep, Body — and
+  cells drain a little each day. One action a day keeps a cell full; big days overflow and carry you
+  through lighter ones. Nothing shows as "x/y".
+- **Clock-free days sized by your battery.** Each morning you say Low / Normal / Charged, and the day
+  is autofilled with concrete sessions (the next person to message, the next job to apply to, the next
+  roadmap problem) in *moments* — after waking, out of the room, evening, night-owl hours, before bed.
+  Low days keep only what the neediest cells need; charged days get bonus blocks. Only classes have
+  times, and Autobot spotlights one **Next up** session at a time.
 - **Routines + reminders.** Morning and night stacks (pill + hair serum) get one push each: shortly
   after you first open the app, and before bedtime. Classes, bedtime, referral follow-ups, stalled
   days and the Sunday wrap-up get pushes too.

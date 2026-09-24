@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import {
   addDays,
+  cellStates,
   classesOn,
   currentMoment,
   dayMinutes,
@@ -19,13 +20,14 @@ import {
   sortMissions,
   speak,
   stackItems,
-  weekTotals,
+  type Cell,
+  type CellState,
   type ChatMessage,
   type Checkin,
   type ClassBlock,
   type DayType,
+  type Energy,
   type LogEntry,
-  type LogKind,
   type Mission,
   type Moment,
   type Problem,
@@ -61,7 +63,9 @@ export interface TodayState {
   morning: StackItem[]
   night: StackItem[]
   perWeek: PerWeekRoutine[]
-  totals: Record<LogKind, number>
+  cells: Record<Cell, CellState>
+  /** Today's battery check-in; null until asked */
+  energy: Energy | null
   speech: Speech
   brief: ChatMessage | null
   reviews: Problem[]
@@ -113,6 +117,9 @@ export function useToday(skip: string[] = []): TodayState {
         count: routineWeekCount(routine.id, date, routineLogs),
         doneToday: routineDone(routine.id, date, routineLogs),
       }))
+    const since = checkins.map((c) => c.date).sort()[0]
+    const cells = cellStates(logs, date, since)
+    const energy = checkin?.energy ?? null
     const pending = (items: StackItem[]) => items.filter((i) => !i.done).map((i) => i.routine.name.toLowerCase())
     const speech = speak({
       name,
@@ -130,6 +137,8 @@ export function useToday(skip: string[] = []): TodayState {
       classes: lectures,
       tomorrowClasses: tomorrowLectures,
       weather,
+      energy,
+      cells,
     })
     const brief =
       live(chat).find((m) => (m.meta as { kind?: string; day?: string })?.kind === 'brief' && (m.meta as { day?: string }).day === date) ??
@@ -151,7 +160,8 @@ export function useToday(skip: string[] = []): TodayState {
       morning,
       night,
       perWeek,
-      totals: weekTotals(logs, date),
+      cells,
+      energy,
       speech,
       brief,
       reviews: reviewsDue(problems, date),

@@ -69,11 +69,8 @@ export function MissionRow({
         </p>
         <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[12px] font-bold text-ink-3">
           <span className={AREA[mission.area].text}>{AREA[mission.area].label}</span>
-          {mission.target_key && mission.amount > 1 && (
-            <span className="num">
-              {Math.min(progress ?? 0, mission.amount)}/{mission.amount}
-            </span>
-          )}
+          {mission.note && mission.note !== 'racket' && <span>{mission.note}</span>}
+          {mission.status === 'todo' && (progress ?? 0) > 0 && <span className="text-mint">started</span>}
           {mission.status === 'doing' && <span className="text-accent">In progress</span>}
           {skipped && <span>Skipped</span>}
           {mission.source === 'autobot' && <span>Added by Autobot</span>}
@@ -118,9 +115,7 @@ export function MomentGroups({
                   </h3>
                   {momentHint(moment, type) && <p className="text-[12px] font-bold text-ink-3">{momentHint(moment, type)}</p>}
                 </div>
-                <span className="num text-[12px] font-bold text-ink-3">
-                  {doneCount}/{items.length}
-                </span>
+                {doneCount === items.length && <span className="text-[12px] font-extrabold text-mint">All done ✓</span>}
               </header>
               <ul className="divide-y divide-line">
                 {items.map((m) => (
